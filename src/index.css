@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 30% 97%;
+    --foreground: 230 40% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 230 40% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 230 40% 12%;
+
+    --primary: 240 100% 33%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 92%;
+    --secondary-foreground: 240 100% 33%;
+
+    --muted: 210 25% 94%;
+    --muted-foreground: 220 15% 46%;
+
+    --accent: 187 100% 42%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 20% 88%;
+    --input: 210 20% 88%;
+    --ring: 240 100% 33%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 225 15% 10%;
+    --foreground: 210 20% 90%;
+
+    --card: 225 12% 14%;
+    --card-foreground: 210 20% 88%;
+
+    --popover: 225 12% 14%;
+    --popover-foreground: 210 20% 88%;
+
+    --primary: 225 50% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 225 15% 20%;
+    --secondary-foreground: 210 20% 88%;
+
+    --muted: 225 10% 18%;
+    --muted-foreground: 220 10% 58%;
+
+    --accent: 187 60% 35%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 65% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 225 12% 22%;
+    --input: 225 12% 22%;
+    --ring: 225 50% 50%;
+
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  .view-enter {
+    animation: fade-in 0.3s ease-out;
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @media print {
+    body * {
+      visibility: hidden;
+    }
+    .print-content,
+    .print-content * {
+      visibility: visible;
+    }
+    .print-content {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+    }
+    .no-print {
+      display: none !important;
+    }
+    @page {
+      size: A4 landscape;
+      margin: 10mm;
+    }
+    body {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+  }
+}

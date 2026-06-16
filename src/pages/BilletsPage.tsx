@@ -1,0 +1,481 @@
+import { useState, useEffect, useCallback } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
+import { getBillets, addBillet, updateBillet, deleteBillet, getClients } from "@/lib/storage";
+import type { Client, Billet, BilletFormData } from "@/lib/types";
+import { BILLET_TYPES, MULTIPLICATEURS, MODES_REGLEMENT, formatNumDevis, parseMultiplicateur } from "@/lib/types";
+import { MONTH_NAMES_FR } from "@/lib/utils";
+import { Plus, Trash2, Save, Printer, Lock, LockOpen, Search } from "lucide-react";
+
+interface BilletsPageProps {
+  year: number;
+  month: number;
+}
+
+const emptyBillet = (): BilletFormData => ({
+  num_devis: "",
+  date_sortie: "",
+  destination: "",
+  client_id: "",
+  contact_client: "",
+  adresse_facturation: "",
+  num_siret: "",
+  num_siren: "",
+  num_nic: "",
+  num_commande: "",
+  multiplicateur: "1X",
+  prix_unitaire: null,
+  montant_acompte: null,
+  mode_reglement: "",
+  num_facture: "",
+});
+
+export function BilletsPage({ year, month }: BilletsPageProps) {
+  const [billets, setBillets] = useState<Billet[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [selectedType, setSelectedType] = useState<string>("standard");
+  const [form, setForm] = useState<BilletFormData>(emptyBillet());
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [comptaMode, setComptaMode] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    const [billetsData, clientsData] = await Promise.all([
+      getBillets(selectedType, month + 1, year),
+      getClients(),
+    ]);
+    setBillets(billetsData);
+    setClients(clientsData);
+    setLoading(false);
+  }, [selectedType, month, year]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const typeLabel = BILLET_TYPES.find((t) => t.value === selectedType)?.label || selectedType;
+
+  // Filter billets by search
+  const filteredBillets = billets.filter((b) =>
+    !search ||
+    b.num_devis.toLowerCase().includes(search.toLowerCase()) ||
+    (b.destination && b.destination.toLowerCase().includes(search.toLowerCase())) ||
+    (b.num_commande && b.num_commande.toLowerCase().includes(search.toLowerCase()))
+  );
+
+  const handleClientSelect = (clientId: string) => {
+    const client = clients.find((c) => c.id === clientId);
+    if (client) {
+      setForm((prev) => ({
+        ...prev,
+        client_id: client.id,
+        contact_client: client.mail || "",
+        adresse_facturation: client.adresse || "",
+        num_siret: client.siret || "",
+        num_siren: client.siren || "",
+        num_nic: client.nic || "",
+      }));
+    }
+  };
+
+  const handlePrixUnitaireChange = (value: string) => {
+    const p = parseFloat(value);
+    const prix_unitaire = isNaN(p) ? null : p;
+    const multiplicateur = parseMultiplicateur(form.multiplicateur);
+    const prix_ttc = prix_unitaire !== null ? parseFloat((prix_unitaire * multiplicateur).toFixed(2)) : null;
+    setForm((prev) => ({ ...prev, prix_unitaire, prix_ttc }));
+  };
+
+  const handleMultiplicateurChange = (val: string) => {
+    const multiplicateur = parseMultiplicateur(val);
+    const prix_ttc = form.prix_unitaire !== null ? parseFloat((form.prix_unitaire * multiplicateur).toFixed(2)) : null;
+    setForm((prev) => ({ ...prev, multiplicateur: val, prix_ttc }));
+  };
+
+  const handleSave = async () => {
+    if (!form.num_devis.trim()) {
+      toast.error("Le numéro de devis est obligatoire");
+      return;
+    }
+
+    const formatedNumDevis = formatNumDevis(form.num_devis, year);
+
+    const billetData = {
+      type: selectedType as "standard" | "tarascon" | "avignon",
+      mois: month + 1,
+      annee: year,
+      num_devis: formatedNumDevis,
+      date_sortie: form.date_sortie,
+      destination: form.destination,
+      client_id: form.client_id,
+      contact_client: form.contact_client,
+      adresse_facturation: form.adresse_facturation,
+      num_siret: form.num_siret,
+      num_siren: form.num_siren,
+      num_nic: form.num_nic,
+      num_commande: form.num_commande,
+      multiplicateur: form.multiplicateur,
+      prix_unitaire: form.prix_unitaire,
+      prix_ttc: form.prix_ttc,
+      prix_ht: form.prix_ttc, // For now, same as TTC (no VAT separation yet)
+      montant_acompte: form.montant_acompte,
+      mode_reglement: form.mode_reglement,
+      num_facture: form.num_facture,
+    };
+
+    if (editingId) {
+      const ok = await updateBillet(editingId, billetData);
+      if (ok) {
+        toast.success("Billet modifié");
+        loadData();
+        resetForm();
+      } else {
+        toast.error("Erreur lors de la modification");
+      }
+    } else {
+      const result = await addBillet(billetData);
+      if (result) {
+        toast.success("Billet ajouté");
+        loadData();
+        resetForm();
+      } else {
+        toast.error("Erreur lors de l'ajout");
+      }
+    }
+  };
+
+  const handleEdit = (billet: Billet) => {
+    setForm({
+      num_devis: billet.num_devis,
+      date_sortie: billet.date_sortie?.split("T")[0] || "",
+      destination: billet.destination || "",
+      client_id: billet.client_id || "",
+      contact_client: billet.contact_client || "",
+      adresse_facturation: billet.adresse_facturation || "",
+      num_siret: billet.num_siret || "",
+      num_siren: billet.num_siren || "",
+      num_nic: billet.num_nic || "",
+      num_commande: billet.num_commande || "",
+      multiplicateur: billet.multiplicateur || "1X",
+      prix_unitaire: billet.prix_unitaire,
+      montant_acompte: billet.montant_acompte,
+      mode_reglement: billet.mode_reglement || "",
+      num_facture: billet.num_facture || "",
+    });
+    setEditingId(billet.id);
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Supprimer ce billet ?")) return;
+    const ok = await deleteBillet(id);
+    if (ok) {
+      toast.success("Billet supprimé");
+      loadData();
+      if (editingId === id) resetForm();
+    }
+  };
+
+  const resetForm = () => {
+    setForm(emptyBillet());
+    setEditingId(null);
+    setShowForm(false);
+  };
+
+  // Calculate totals
+  const totalTTC = billets.reduce((sum, b) => sum + (b.prix_ttc || 0), 0);
+  const totalHT = billets.reduce((sum, b) => sum + (b.prix_ht || 0), 0);
+
+  const getClientName = (clientId: string) => {
+    const client = clients.find((c) => c.id === clientId);
+    return client ? client.nom : "(Client inconnu)";
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 animate-fade-in">
+      {/* Header with type selector */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-bold">{typeLabel} — {MONTH_NAMES_FR[month]} {year}</h2>
+          <div className="flex gap-1">
+            {BILLET_TYPES.map((t) => (
+              <Button
+                key={t.value}
+                variant={selectedType === t.value ? "default" : "outline"}
+                size="sm"
+                onClick={() => { setSelectedType(t.value); resetForm(); }}
+              >
+                {t.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={comptaMode ? "default" : "outline"}
+            size="sm"
+            onClick={() => setComptaMode(!comptaMode)}
+            title="Mode Compta (accès N° Facture)"
+          >
+            {comptaMode ? <LockOpen className="h-4 w-4 mr-1" /> : <Lock className="h-4 w-4 mr-1" />}
+            Compta
+          </Button>
+          <Button size="sm" onClick={() => window.print()}>
+            <Printer className="h-4 w-4 mr-1" /> Imprimer
+          </Button>
+        </div>
+      </div>
+
+      {/* Form section */}
+      {showForm || editingId ? (
+        <div className="bg-card border border-border rounded-lg p-4 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            <div className="space-y-1">
+              <Label>N° Devis *</Label>
+              <Input
+                value={form.num_devis}
+                onChange={(e) => setForm({ ...form, num_devis: e.target.value })}
+                placeholder="126 ou CHA25-126"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Date sortie</Label>
+              <Input
+                type="date"
+                value={form.date_sortie}
+                onChange={(e) => setForm({ ...form, date_sortie: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Destination</Label>
+              <Input
+                value={form.destination}
+                onChange={(e) => setForm({ ...form, destination: e.target.value })}
+                placeholder="Destination"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Client</Label>
+              <Select
+                value={form.client_id}
+                onValueChange={handleClientSelect}
+              >
+                <SelectTrigger><SelectValue placeholder="Sélectionner un client" /></SelectTrigger>
+                <SelectContent>
+                  {clients.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.nom}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Contact client</Label>
+              <Input
+                value={form.contact_client}
+                onChange={(e) => setForm({ ...form, contact_client: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Adresse facturation</Label>
+              <Input
+                value={form.adresse_facturation}
+                onChange={(e) => setForm({ ...form, adresse_facturation: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>N° Siret</Label>
+              <Input value={form.num_siret} onChange={(e) => setForm({ ...form, num_siret: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <Label>N° Siren</Label>
+              <Input value={form.num_siren} onChange={(e) => setForm({ ...form, num_siren: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <Label>N° Nic</Label>
+              <Input value={form.num_nic} onChange={(e) => setForm({ ...form, num_nic: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <Label>N° Commande</Label>
+              <Input
+                value={form.num_commande}
+                onChange={(e) => setForm({ ...form, num_commande: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Multiplicateur</Label>
+              <Select value={form.multiplicateur} onValueChange={handleMultiplicateurChange}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {MULTIPLICATEURS.map((m) => (
+                    <SelectItem key={m} value={m}>{m}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Prix Unitaire (€)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={form.prix_unitaire ?? ""}
+                onChange={(e) => handlePrixUnitaireChange(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Prix TTC (€)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={form.prix_ttc ?? ""}
+                readOnly
+                className="bg-muted"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Acompte (€)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={form.montant_acompte ?? ""}
+                onChange={(e) => setForm({ ...form, montant_acompte: e.target.value ? parseFloat(e.target.value) : null })}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Mode règlement</Label>
+              <Select
+                value={form.mode_reglement}
+                onValueChange={(val) => setForm({ ...form, mode_reglement: val })}
+              >
+                <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                <SelectContent>
+                  {MODES_REGLEMENT.map((m) => (
+                    <SelectItem key={m} value={m}>{m}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>N° Facture</Label>
+              <Input
+                value={form.num_facture}
+                onChange={(e) => setForm({ ...form, num_facture: e.target.value })}
+                disabled={!comptaMode}
+                className={!comptaMode ? "bg-muted" : ""}
+                placeholder={!comptaMode ? "Réservé à la compta" : ""}
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={handleSave}><Save className="h-4 w-4 mr-1" /> {editingId ? "Modifier" : "Ajouter"}</Button>
+            <Button variant="outline" onClick={resetForm}>Annuler</Button>
+          </div>
+        </div>
+      ) : (
+        <Button onClick={() => setShowForm(true)}>
+          <Plus className="h-4 w-4 mr-1" /> Nouveau billet
+        </Button>
+      )}
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          className="pl-9"
+          placeholder="Rechercher (N° devis, destination, commande...)"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+
+      {/* Table */}
+      <div className="bg-card border border-border rounded-lg overflow-x-auto print-content">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-primary text-primary-foreground">
+              <th className="p-1.5 text-left">N° Devis</th>
+              <th className="p-1.5 text-left">Date</th>
+              <th className="p-1.5 text-left">Destination</th>
+              <th className="p-1.5 text-left">Client</th>
+              <th className="p-1.5 text-left">Contact</th>
+              <th className="p-1.5 text-left">Adresse fact.</th>
+              <th className="p-1.5 text-left">Siret</th>
+              <th className="p-1.5 text-left">Siren</th>
+              <th className="p-1.5 text-left">Nic</th>
+              <th className="p-1.5 text-left">N° Cde</th>
+              <th className="p-1.5 text-center">Mult</th>
+              <th className="p-1.5 text-right">Prix U.</th>
+              <th className="p-1.5 text-right">TTC</th>
+              <th className="p-1.5 text-right">HT</th>
+              <th className="p-1.5 text-right">Acompte</th>
+              <th className="p-1.5 text-left">Règlement</th>
+              <th className="p-1.5 text-left">N° Facture</th>
+              <th className="p-1.5 text-center no-print w-16">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredBillets.length === 0 ? (
+              <tr>
+                <td colSpan={18} className="p-4 text-center text-muted-foreground">
+                  Aucun billet pour cette période
+                </td>
+              </tr>
+            ) : (
+              filteredBillets.map((b) => (
+                <tr key={b.id} className="border-t border-border hover:bg-muted/40 grid-row">
+                  <td className="p-1.5 font-medium">{b.num_devis}</td>
+                  <td className="p-1.5">{b.date_sortie?.split("T")[0] || "-"}</td>
+                  <td className="p-1.5">{b.destination || "-"}</td>
+                  <td className="p-1.5">{getClientName(b.client_id || "")}</td>
+                  <td className="p-1.5 truncate max-w-[100px]">{b.contact_client || "-"}</td>
+                  <td className="p-1.5 truncate max-w-[100px]">{b.adresse_facturation || "-"}</td>
+                  <td className="p-1.5">{b.num_siret || "-"}</td>
+                  <td className="p-1.5">{b.num_siren || "-"}</td>
+                  <td className="p-1.5">{b.num_nic || "-"}</td>
+                  <td className="p-1.5">{b.num_commande || "-"}</td>
+                  <td className="p-1.5 text-center">{b.multiplicateur || "-"}</td>
+                  <td className="p-1.5 text-right">{b.prix_unitaire?.toFixed(2) || "-"} €</td>
+                  <td className="p-1.5 text-right font-medium">{b.prix_ttc?.toFixed(2) || "-"} €</td>
+                  <td className="p-1.5 text-right">{b.prix_ht?.toFixed(2) || "-"} €</td>
+                  <td className="p-1.5 text-right">{b.montant_acompte?.toFixed(2) || "-"} €</td>
+                  <td className="p-1.5">{b.mode_reglement || "-"}</td>
+                  <td className="p-1.5">{b.num_facture || "-"}</td>
+                  <td className="p-1.5 text-center no-print">
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => handleEdit(b)}>
+                      <Save className="h-3 w-3" />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive" onClick={() => handleDelete(b.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+          <tfoot>
+            <tr className="bg-grid-total font-bold border-t-2 border-border">
+              <td colSpan={11} className="p-1.5 text-right">TOTAUX :</td>
+              <td className="p-1.5 text-right">{totalTTC.toFixed(2)} €</td>
+              <td className="p-1.5 text-right">{totalHT.toFixed(2)} €</td>
+              <td colSpan={4}></td>
+              <td className="p-1.5 no-print"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  );
+}
