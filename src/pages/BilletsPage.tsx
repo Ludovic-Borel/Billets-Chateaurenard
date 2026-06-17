@@ -394,7 +394,7 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
               filteredBillets.map((b) => (
                 <tr key={b.id} className="border-t border-border hover:bg-muted/40">
                   <td className="p-0.5 px-1 whitespace-nowrap font-medium">{b.num_devis}</td>
-                  <td className="p-0.5 px-1 whitespace-nowrap">{b.date_sortie?.split("T")[0] || "-"}</td>
+                  <td className="p-0.5 px-1 whitespace-nowrap">{b.date_sortie ? new Date(b.date_sortie.split("T")[0]).toLocaleDateString("fr-FR") : "-"}</td>
                   <td className="p-0.5 px-1 whitespace-nowrap">{b.destination || "-"}</td>
                   <td className="p-0.5 px-1 whitespace-nowrap">{getClientName(b.client_id || "")}</td>
                   <td className="p-0.5 px-1 whitespace-nowrap">{b.contact_client || "-"}</td>

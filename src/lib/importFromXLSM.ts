@@ -73,7 +73,7 @@ function findColIndex(headers: any[], searchTerms: string[]): number {
   });
 }
 
-export async function importFromXLSM(filePath: string): Promise<ImportResult> {
+export async function importFromXLSM(source: string | ArrayBuffer): Promise<ImportResult> {
   const result: ImportResult = {
     clientsImportes: 0, clientsIgnores: 0,
     billetsImportes: { standard: 0, tarascon: 0, avignon: 0 },
@@ -87,7 +87,12 @@ export async function importFromXLSM(filePath: string): Promise<ImportResult> {
 
   let wb: XLSX.WorkBook;
   try {
-    wb = XLSX.readFile(filePath);
+    if (typeof source === "string") {
+      wb = XLSX.readFile(source);
+    } else {
+      const data = new Uint8Array(source);
+      wb = XLSX.read(data, { type: "array" });
+    }
   } catch (e: any) {
     result.erreurs.push(`Impossible de lire le fichier: ${e.message}`);
     return result;

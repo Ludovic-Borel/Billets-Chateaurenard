@@ -168,9 +168,11 @@ async function main() {
       const row = data[i];
       if (!row || !Array.isArray(row)) continue;
       const num_devis = row[cm.num_devis]?.toString().trim();
-      if (!num_devis || num_devis.startsWith("TOTAUX")) continue;
+      if (!num_devis || num_devis.startsWith("TOTAUX") || num_devis.startsWith("Total")) continue;
 
       const clientName = row[cm.client]?.toString().trim() || "";
+      // Skip if no client name and no devis number (empty row)
+      if (!num_devis && !clientName) continue;
       let clientId = null;
       if (clientName) {
         const { data: clients } = await supabase.from("clients").select("id").ilike("nom", `%${clientName}%`).limit(1);
