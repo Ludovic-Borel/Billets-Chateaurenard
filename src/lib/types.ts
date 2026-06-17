@@ -48,6 +48,8 @@ export interface BilletFormData {
   num_commande: string;
   multiplicateur: string;
   prix_unitaire: number | null;
+  prix_ttc: number | null;
+  prix_ht: number | null;
   montant_acompte: number | null;
   mode_reglement: string;
   num_facture: string;

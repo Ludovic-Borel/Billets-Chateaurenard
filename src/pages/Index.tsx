@@ -17,7 +17,7 @@ export default function Index() {
       <Header />
 
       <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b">
-        <div className="max-w-screen-2xl mx-auto px-6 py-3 flex items-center justify-between flex-wrap gap-3">
+        <div className="w-full px-6 py-2 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
             <MonthSelector year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m); }} />
             <Button
@@ -38,7 +38,7 @@ export default function Index() {
         </div>
       </div>
 
-      <main className="max-w-screen-2xl mx-auto px-6 py-6">
+      <main className="w-full px-4 py-4">
         {activeView === "clients" ? (
           <ClientsPage />
         ) : (
