@@ -178,16 +178,25 @@ export async function importFromXLSM(source: string | ArrayBuffer): Promise<Impo
       if (!row || !Array.isArray(row)) continue;
 
       const num_devis = row[colMap.num_devis]?.toString().trim();
-      if (!num_devis || num_devis.startsWith("TOTAUX") || num_devis.startsWith("Total")) continue;
+      const clientName = row[colMap.client]?.toString().trim() || "";
 
-      // Skip duplicate
-      const { data: existing } = await supabase.from("billets").select("id")
-        .eq("num_devis", num_devis).eq("type", sheetInfo.type)
-        .eq("mois", sheetInfo.mois).eq("annee", sheetInfo.annee).maybeSingle();
-      if (existing) continue;
+      // Skip if empty row (no devis AND no client)
+      if ((!num_devis || num_devis.startsWith("TOTAUX") || num_devis.startsWith("Total")) && !clientName) continue;
+
+      // If we have a client name but no devis, generate a temporary reference
+      const devisRef = num_devis && !num_devis.startsWith("TOTAUX") && !num_devis.startsWith("Total")
+        ? num_devis
+        : `AUTO-${sheetInfo.type}-${sheetInfo.mois}-${Date.now()}-${i}`;
+
+      // Skip duplicate (only if real devis number)
+      if (num_devis && !num_devis.startsWith("TOTAUX") && !num_devis.startsWith("Total")) {
+        const { data: existing } = await supabase.from("billets").select("id")
+          .eq("num_devis", num_devis.toUpperCase()).eq("type", sheetInfo.type)
+          .eq("mois", sheetInfo.mois).eq("annee", sheetInfo.annee).maybeSingle();
+        if (existing) continue;
+      }
 
       // Lookup client
-      const clientName = row[colMap.client]?.toString().trim() || "";
       let clientId: string | null = null;
       if (clientName) {
         const { data: clients } = await supabase.from("clients").select("id").ilike("nom", `%${clientName}%`).limit(1);
@@ -232,7 +241,7 @@ export async function importFromXLSM(source: string | ArrayBuffer): Promise<Impo
         type: sheetInfo.type,
         mois: sheetInfo.mois,
         annee: sheetInfo.annee,
-        num_devis: num_devis.toUpperCase(),
+        num_devis: devisRef.toUpperCase(),
         date_sortie: dateSortie,
         destination: row[colMap.destination]?.toString().trim() || "",
         client_id: clientId,
