@@ -68,8 +68,13 @@ export interface ImportResult {
 function findColIndex(headers: any[], searchTerms: string[]): number {
   return headers.findIndex((h: any) => {
     if (!h) return false;
-    const hs = h.toString().trim();
-    return searchTerms.some(t => hs.toLowerCase().includes(t.toLowerCase()));
+    const hs = h.toString().trim().toLowerCase();
+    return searchTerms.some(t => {
+      // Search as whole word (word boundary) to avoid false matches
+      const escaped = t.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`\\b${escaped}\\b`, 'i');
+      return regex.test(hs);
+    });
   });
 }
 
@@ -258,7 +263,6 @@ export async function importFromXLSM(source: string | ArrayBuffer): Promise<Impo
         prix_ht: parseNum(row[colMap.prix_ht]),
         montant_acompte: parseNum(row[colMap.acompte]),
         mode_reglement: row[colMap.reglement]?.toString().trim() || "",
-        chorus: colMap.chorus >= 0 ? (row[colMap.chorus]?.toString().trim() || "") : "",
         num_facture: row[colMap.facture]?.toString().trim() || "",
       };
 

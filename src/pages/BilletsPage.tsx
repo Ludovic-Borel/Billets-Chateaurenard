@@ -8,7 +8,7 @@ import {
 import { toast } from "sonner";
 import { getBillets, addBillet, updateBillet, deleteBillet, getClients } from "@/lib/storage";
 import type { Client, Billet, BilletFormData } from "@/lib/types";
-import { BILLET_TYPES, MULTIPLICATEURS, MODES_REGLEMENT, CHORUS_OPTIONS, formatNumDevis, parseMultiplicateur } from "@/lib/types";
+import { BILLET_TYPES, MULTIPLICATEURS, MODES_REGLEMENT, formatNumDevis, parseMultiplicateur } from "@/lib/types";
 import { MONTH_NAMES_FR } from "@/lib/utils";
 import { Plus, Trash2, Pencil, Printer, Lock, LockOpen, Search } from "lucide-react";
 
@@ -34,7 +34,6 @@ const emptyBillet = (): BilletFormData => ({
   prix_ht: null,
   montant_acompte: null,
   mode_reglement: "",
-  chorus: "",
   num_facture: "",
 });
 
@@ -82,7 +81,6 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
         num_siret: client.siret || "",
         num_siren: client.siren || "",
         num_nic: client.nic || "",
-        chorus: client.chorus || "",
       }));
     }
   };
@@ -129,7 +127,6 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
       prix_ht: form.prix_ttc,
       montant_acompte: form.montant_acompte,
       mode_reglement: form.mode_reglement,
-      chorus: form.chorus,
       num_facture: form.num_facture,
     };
 
@@ -172,7 +169,6 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
       prix_ht: billet.prix_ht,
       montant_acompte: billet.montant_acompte,
       mode_reglement: billet.mode_reglement || "",
-      chorus: billet.chorus || "",
       num_facture: billet.num_facture || "",
     });
     setEditingId(billet.id);
@@ -198,9 +194,9 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
   const totalTTC = billets.reduce((sum, b) => sum + (b.prix_ttc || 0), 0);
   const totalHT = billets.reduce((sum, b) => sum + (b.prix_ht || 0), 0);
 
-  const getClientName = (clientId: string) => {
+  const getClientField = (clientId: string, field: keyof Client) => {
     const client = clients.find((c) => c.id === clientId);
-    return client ? client.nom : "(Client inconnu)";
+    return client ? String(client[field] || "") : "";
   };
 
   if (loading) {
@@ -276,11 +272,6 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
                 <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
                 <SelectContent>{MODES_REGLEMENT.map((m) => (<SelectItem key={m} value={m}>{m}</SelectItem>))}</SelectContent>
               </Select></div>
-            <div className="space-y-0.5"><Label className="text-[10px]">Chorus</Label>
-              <Select value={form.chorus} onValueChange={(val) => setForm({ ...form, chorus: val })}>
-                <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Non défini" /></SelectTrigger>
-                <SelectContent>{CHORUS_OPTIONS.map((o) => (<SelectItem key={o} value={o}>{o || "Non défini"}</SelectItem>))}</SelectContent>
-              </Select></div>
             <div className="space-y-0.5"><Label className="text-[10px]">N° Facture</Label>
               <Input className="h-7 text-xs" value={form.num_facture} onChange={(e) => setForm({ ...form, num_facture: e.target.value })} disabled={!comptaMode} placeholder={!comptaMode ? "Réservé compta" : ""} /></div>
           </div>
@@ -336,7 +327,7 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
                   <td className="p-0.5 px-1 whitespace-nowrap font-medium">{b.num_devis}</td>
                   <td className="p-0.5 px-1 whitespace-nowrap">{b.date_sortie ? new Date(b.date_sortie.split("T")[0]).toLocaleDateString("fr-FR") : "-"}</td>
                   <td className="p-0.5 px-1 whitespace-nowrap">{b.destination || "-"}</td>
-                  <td className="p-0.5 px-1 whitespace-nowrap">{getClientName(b.client_id || "")}</td>
+                  <td className="p-0.5 px-1 whitespace-nowrap">{getClientField(b.client_id, "nom") || "(Client inconnu)"}</td>
                   <td className="p-0.5 px-1 whitespace-nowrap">{b.contact_client || "-"}</td>
                   <td className="p-0.5 px-1 whitespace-nowrap">{b.adresse_facturation || "-"}</td>
                   <td className="p-0.5 px-1 whitespace-nowrap">{b.num_siret || "-"}</td>
@@ -350,7 +341,7 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
                   <td className="p-0.5 px-1 whitespace-nowrap text-right">{b.montant_acompte?.toFixed(2) || "-"} €</td>
                   <td className="p-0.5 px-1 whitespace-nowrap">{b.mode_reglement || "-"}</td>
                   <td className="p-0.5 px-1 whitespace-nowrap text-center">
-                    <span className={`px-1 py-0.5 rounded text-[10px] font-medium ${b.chorus === "Oui" ? "bg-green-100 text-green-800" : b.chorus === "Non" ? "bg-red-100 text-red-800" : ""}`}>{b.chorus || "-"}</span>
+                    <span className={`px-1 py-0.5 rounded text-[10px] font-medium ${getClientField(b.client_id, "chorus") === "Oui" ? "bg-green-100 text-green-800" : getClientField(b.client_id, "chorus") === "Non" ? "bg-red-100 text-red-800" : ""}`}>{getClientField(b.client_id, "chorus") || "-"}</span>
                   </td>
                   <td className="p-0.5 px-1 whitespace-nowrap">{b.num_facture || "-"}</td>
                   <td className="p-0.5 px-1 whitespace-nowrap text-center no-print">

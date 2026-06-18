@@ -31,7 +31,6 @@ export interface Billet {
   prix_ht: number | null;
   montant_acompte: number | null;
   mode_reglement: string;
-  chorus: string;
   num_facture: string;
   created_at: string;
   updated_at: string;
@@ -54,7 +53,6 @@ export interface BilletFormData {
   prix_ht: number | null;
   montant_acompte: number | null;
   mode_reglement: string;
-  chorus: string;
   num_facture: string;
 }
 

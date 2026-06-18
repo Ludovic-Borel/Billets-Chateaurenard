@@ -69,7 +69,14 @@ function excelDateToString(excelDate) {
 }
 
 function findColIndex(headers, terms) {
-  return headers.findIndex((h) => h && terms.some((t) => h.toString().toLowerCase().includes(t)));
+  return headers.findIndex((h) => {
+    if (!h) return false;
+    const hs = h.toString().trim().toLowerCase();
+    return terms.some((t) => {
+      const escaped = t.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return new RegExp('\\b' + escaped + '\\b', 'i').test(hs);
+    });
+  });
 }
 
 async function main() {
