@@ -6,6 +6,7 @@ export interface Client {
   siret: string;
   siren: string;
   nic: string;
+  chorus: string;
   created_at: string;
 }
 
@@ -30,6 +31,7 @@ export interface Billet {
   prix_ht: number | null;
   montant_acompte: number | null;
   mode_reglement: string;
+  chorus: string;
   num_facture: string;
   created_at: string;
   updated_at: string;
@@ -52,6 +54,7 @@ export interface BilletFormData {
   prix_ht: number | null;
   montant_acompte: number | null;
   mode_reglement: string;
+  chorus: string;
   num_facture: string;
 }
 
@@ -62,6 +65,7 @@ export interface ClientFormData {
   siret: string;
   siren: string;
   nic: string;
+  chorus: string;
 }
 
 export const BILLET_TYPES = [
@@ -78,6 +82,8 @@ export const MODES_REGLEMENT = [
   "Chèque", "Espèces", "Virement", "CB", "Prélèvement", "Autre",
 ];
 
+export const CHORUS_OPTIONS = ["", "Oui", "Non"];
+
 export function parseMultiplicateur(val: string): number {
   const m = parseInt(val.replace("X", ""));
   return isNaN(m) ? 1 : m;
@@ -87,12 +93,10 @@ export function formatNumDevis(input: string, annee: number): string {
   const trimmed = input.trim();
   if (trimmed === "") return "";
 
-  // If it already starts with CHA25- or CHA26- (or any CHA##-), keep as-is
   if (/^CHA\d{2}-/i.test(trimmed)) {
     return trimmed.toUpperCase();
   }
 
-  // Otherwise, prefix with CHA{annee_short}-
   const shortYear = String(annee).slice(-2);
   return `CHA${shortYear}-${trimmed}`;
 }

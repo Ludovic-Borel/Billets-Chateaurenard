@@ -170,6 +170,7 @@ export async function importFromXLSM(source: string | ArrayBuffer): Promise<Impo
       prix_ht: colIndex(["ht"]),
       acompte: colIndex(["acompte"]),
       reglement: colIndex(["reglement"]),
+      chorus: colIndex(["chorus"]),
       facture: colIndex(["facture"]),
     };
 
@@ -257,6 +258,7 @@ export async function importFromXLSM(source: string | ArrayBuffer): Promise<Impo
         prix_ht: parseNum(row[colMap.prix_ht]),
         montant_acompte: parseNum(row[colMap.acompte]),
         mode_reglement: row[colMap.reglement]?.toString().trim() || "",
+        chorus: colMap.chorus >= 0 ? (row[colMap.chorus]?.toString().trim() || "") : "",
         num_facture: row[colMap.facture]?.toString().trim() || "",
       };
 

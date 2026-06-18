@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { getClients, addClient, updateClient, deleteClient } from "@/lib/storage";
 import type { Client, ClientFormData } from "@/lib/types";
+import { CHORUS_OPTIONS } from "@/lib/types";
 import { Search, Pencil, Trash2, X, Save } from "lucide-react";
 
-const emptyForm: ClientFormData = { nom: "", mail: "", adresse: "", siret: "", siren: "", nic: "" };
+const emptyForm: ClientFormData = { nom: "", mail: "", adresse: "", siret: "", siren: "", nic: "", chorus: "" };
 
 export function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -40,6 +42,7 @@ export function ClientsPage() {
       siret: client.siret || "",
       siren: client.siren || "",
       nic: client.nic || "",
+      chorus: client.chorus || "",
     });
     setEditingId(client.id);
   };
@@ -105,7 +108,7 @@ export function ClientsPage() {
 
       {/* Formulaire */}
       <div className="bg-card border border-border rounded-lg p-3 space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-2">
           <div className="space-y-0.5">
             <Label className="text-[10px]" htmlFor="nom">Nom *</Label>
             <Input className="h-7 text-xs" id="nom" value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} placeholder="Nom du client" />
@@ -129,6 +132,17 @@ export function ClientsPage() {
           <div className="space-y-0.5">
             <Label className="text-[10px]" htmlFor="nic">Nic</Label>
             <Input className="h-7 text-xs" id="nic" value={form.nic} onChange={(e) => setForm({ ...form, nic: e.target.value })} placeholder="N° Nic" />
+          </div>
+          <div className="space-y-0.5">
+            <Label className="text-[10px]" htmlFor="chorus">Chorus</Label>
+            <Select value={form.chorus} onValueChange={(val) => setForm({ ...form, chorus: val })}>
+              <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Non défini" /></SelectTrigger>
+              <SelectContent>
+                {CHORUS_OPTIONS.map((opt) => (
+                  <SelectItem key={opt} value={opt}>{opt || "Non défini"}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <div className="flex gap-2">
@@ -154,7 +168,7 @@ export function ClientsPage() {
           <Button variant="outline" className="h-7 text-xs" onClick={handleNew}>+ Nouveau</Button>
         </div>
 
-        <div className="max-h-[400px] overflow-y-auto border border-border rounded-md">
+        <div className="max-h-[450px] overflow-y-auto border border-border rounded-md">
           <table className="w-full text-[11px]">
             <thead className="bg-muted sticky top-0">
               <tr>
@@ -163,12 +177,14 @@ export function ClientsPage() {
                 <th className="p-1 text-left whitespace-nowrap font-medium">Adresse</th>
                 <th className="p-1 text-left whitespace-nowrap font-medium">Siret</th>
                 <th className="p-1 text-left whitespace-nowrap font-medium">Siren</th>
+                <th className="p-1 text-left whitespace-nowrap font-medium">Nic</th>
+                <th className="p-1 text-center whitespace-nowrap font-medium">Chorus</th>
                 <th className="p-1 text-center whitespace-nowrap font-medium w-16">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={6} className="p-3 text-center text-muted-foreground text-xs">Aucun client trouvé</td></tr>
+                <tr><td colSpan={8} className="p-3 text-center text-muted-foreground text-xs">Aucun client trouvé</td></tr>
               ) : (
                 filtered.map((client) => (
                   <tr
@@ -181,6 +197,12 @@ export function ClientsPage() {
                     <td className="p-0.5 px-1 whitespace-nowrap text-muted-foreground">{client.adresse}</td>
                     <td className="p-0.5 px-1 whitespace-nowrap text-muted-foreground">{client.siret}</td>
                     <td className="p-0.5 px-1 whitespace-nowrap text-muted-foreground">{client.siren}</td>
+                    <td className="p-0.5 px-1 whitespace-nowrap text-muted-foreground">{client.nic}</td>
+                    <td className="p-0.5 px-1 whitespace-nowrap text-center">
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${client.chorus === "Oui" ? "bg-green-100 text-green-800" : client.chorus === "Non" ? "bg-red-100 text-red-800" : ""}`}>
+                        {client.chorus || "-"}
+                      </span>
+                    </td>
                     <td className="p-0.5 px-1 whitespace-nowrap text-center">
                       <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={(e) => { e.stopPropagation(); handleSelect(client); }} title="Modifier">
                         <Pencil className="h-2.5 w-2.5" />

@@ -8,7 +8,7 @@ import {
 import { toast } from "sonner";
 import { getBillets, addBillet, updateBillet, deleteBillet, getClients } from "@/lib/storage";
 import type { Client, Billet, BilletFormData } from "@/lib/types";
-import { BILLET_TYPES, MULTIPLICATEURS, MODES_REGLEMENT, formatNumDevis, parseMultiplicateur } from "@/lib/types";
+import { BILLET_TYPES, MULTIPLICATEURS, MODES_REGLEMENT, CHORUS_OPTIONS, formatNumDevis, parseMultiplicateur } from "@/lib/types";
 import { MONTH_NAMES_FR } from "@/lib/utils";
 import { Plus, Trash2, Pencil, Printer, Lock, LockOpen, Search } from "lucide-react";
 
@@ -34,6 +34,7 @@ const emptyBillet = (): BilletFormData => ({
   prix_ht: null,
   montant_acompte: null,
   mode_reglement: "",
+  chorus: "",
   num_facture: "",
 });
 
@@ -63,7 +64,6 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
 
   const typeLabel = BILLET_TYPES.find((t) => t.value === selectedType)?.label || selectedType;
 
-  // Filter billets by search
   const filteredBillets = billets.filter((b) =>
     !search ||
     b.num_devis.toLowerCase().includes(search.toLowerCase()) ||
@@ -82,6 +82,7 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
         num_siret: client.siret || "",
         num_siren: client.siren || "",
         num_nic: client.nic || "",
+        chorus: client.chorus || "",
       }));
     }
   };
@@ -128,6 +129,7 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
       prix_ht: form.prix_ttc,
       montant_acompte: form.montant_acompte,
       mode_reglement: form.mode_reglement,
+      chorus: form.chorus,
       num_facture: form.num_facture,
     };
 
@@ -170,6 +172,7 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
       prix_ht: billet.prix_ht,
       montant_acompte: billet.montant_acompte,
       mode_reglement: billet.mode_reglement || "",
+      chorus: billet.chorus || "",
       num_facture: billet.num_facture || "",
     });
     setEditingId(billet.id);
@@ -192,7 +195,6 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
     setShowForm(false);
   };
 
-  // Calculate totals
   const totalTTC = billets.reduce((sum, b) => sum + (b.prix_ttc || 0), 0);
   const totalHT = billets.reduce((sum, b) => sum + (b.prix_ht || 0), 0);
 
@@ -211,34 +213,20 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
 
   return (
     <div className="space-y-3 animate-fade-in">
-      {/* Header with type selector */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-bold">{typeLabel} — {MONTH_NAMES_FR[month]} {year}</h2>
           <div className="flex gap-1">
             {BILLET_TYPES.map((t) => (
-              <Button
-                key={t.value}
-                variant={selectedType === t.value ? "default" : "outline"}
-                size="sm"
-                className="h-7 text-xs"
-                onClick={() => { setSelectedType(t.value); resetForm(); }}
-              >
-                {t.label}
-              </Button>
+              <Button key={t.value} variant={selectedType === t.value ? "default" : "outline"} size="sm" className="h-7 text-xs"
+                onClick={() => { setSelectedType(t.value); resetForm(); }}>{t.label}</Button>
             ))}
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant={comptaMode ? "default" : "outline"}
-            size="sm"
-            className="h-7 text-xs"
-            onClick={() => setComptaMode(!comptaMode)}
-            title="Mode Compta (accès N° Facture)"
-          >
-            {comptaMode ? <LockOpen className="h-3.5 w-3.5 mr-1" /> : <Lock className="h-3.5 w-3.5 mr-1" />}
-            Compta
+          <Button variant={comptaMode ? "default" : "outline"} size="sm" className="h-7 text-xs"
+            onClick={() => setComptaMode(!comptaMode)} title="Mode Compta (accès N° Facture)">
+            {comptaMode ? <LockOpen className="h-3.5 w-3.5 mr-1" /> : <Lock className="h-3.5 w-3.5 mr-1" />} Compta
           </Button>
           <Button size="sm" className="h-7 text-xs" onClick={() => window.print()}>
             <Printer className="h-3.5 w-3.5 mr-1" /> Imprimer
@@ -246,95 +234,55 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
         </div>
       </div>
 
-      {/* Form section */}
       {showForm || editingId ? (
         <div className="bg-card border border-border rounded-lg p-3 space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
-            <div className="space-y-0.5">
-              <Label className="text-[10px]">N° Devis *</Label>
-              <Input className="h-7 text-xs" value={form.num_devis} onChange={(e) => setForm({ ...form, num_devis: e.target.value })} placeholder="126 ou CHA25-126" />
-            </div>
-            <div className="space-y-0.5">
-              <Label className="text-[10px]">Date sortie</Label>
-              <Input className="h-7 text-xs" type="date" value={form.date_sortie} onChange={(e) => setForm({ ...form, date_sortie: e.target.value })} />
-            </div>
-            <div className="space-y-0.5">
-              <Label className="text-[10px]">Destination</Label>
-              <Input className="h-7 text-xs" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} placeholder="Destination" />
-            </div>
-            <div className="space-y-0.5">
-              <Label className="text-[10px]">Client</Label>
+            <div className="space-y-0.5"><Label className="text-[10px]">N° Devis *</Label>
+              <Input className="h-7 text-xs" value={form.num_devis} onChange={(e) => setForm({ ...form, num_devis: e.target.value })} placeholder="126 ou CHA25-126" /></div>
+            <div className="space-y-0.5"><Label className="text-[10px]">Date sortie</Label>
+              <Input className="h-7 text-xs" type="date" value={form.date_sortie} onChange={(e) => setForm({ ...form, date_sortie: e.target.value })} /></div>
+            <div className="space-y-0.5"><Label className="text-[10px]">Destination</Label>
+              <Input className="h-7 text-xs" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} placeholder="Destination" /></div>
+            <div className="space-y-0.5"><Label className="text-[10px]">Client</Label>
               <Select value={form.client_id} onValueChange={handleClientSelect}>
                 <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
-                <SelectContent>
-                  {clients.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.nom}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-0.5">
-              <Label className="text-[10px]">Contact client</Label>
-              <Input className="h-7 text-xs" value={form.contact_client} onChange={(e) => setForm({ ...form, contact_client: e.target.value })} />
-            </div>
-            <div className="space-y-0.5">
-              <Label className="text-[10px]">Adresse fact.</Label>
-              <Input className="h-7 text-xs" value={form.adresse_facturation} onChange={(e) => setForm({ ...form, adresse_facturation: e.target.value })} />
-            </div>
-            <div className="space-y-0.5">
-              <Label className="text-[10px]">N° Siret</Label>
-              <Input className="h-7 text-xs" value={form.num_siret} onChange={(e) => setForm({ ...form, num_siret: e.target.value })} />
-            </div>
-            <div className="space-y-0.5">
-              <Label className="text-[10px]">N° Siren</Label>
-              <Input className="h-7 text-xs" value={form.num_siren} onChange={(e) => setForm({ ...form, num_siren: e.target.value })} />
-            </div>
-            <div className="space-y-0.5">
-              <Label className="text-[10px]">N° Nic</Label>
-              <Input className="h-7 text-xs" value={form.num_nic} onChange={(e) => setForm({ ...form, num_nic: e.target.value })} />
-            </div>
-            <div className="space-y-0.5">
-              <Label className="text-[10px]">N° Commande</Label>
-              <Input className="h-7 text-xs" value={form.num_commande} onChange={(e) => setForm({ ...form, num_commande: e.target.value })} />
-            </div>
-            <div className="space-y-0.5">
-              <Label className="text-[10px]">Multiplicateur</Label>
+                <SelectContent>{clients.map((c) => (<SelectItem key={c.id} value={c.id}>{c.nom}</SelectItem>))}</SelectContent>
+              </Select></div>
+            <div className="space-y-0.5"><Label className="text-[10px]">Contact client</Label>
+              <Input className="h-7 text-xs" value={form.contact_client} onChange={(e) => setForm({ ...form, contact_client: e.target.value })} /></div>
+            <div className="space-y-0.5"><Label className="text-[10px]">Adresse fact.</Label>
+              <Input className="h-7 text-xs" value={form.adresse_facturation} onChange={(e) => setForm({ ...form, adresse_facturation: e.target.value })} /></div>
+            <div className="space-y-0.5"><Label className="text-[10px]">N° Siret</Label>
+              <Input className="h-7 text-xs" value={form.num_siret} onChange={(e) => setForm({ ...form, num_siret: e.target.value })} /></div>
+            <div className="space-y-0.5"><Label className="text-[10px]">N° Siren</Label>
+              <Input className="h-7 text-xs" value={form.num_siren} onChange={(e) => setForm({ ...form, num_siren: e.target.value })} /></div>
+            <div className="space-y-0.5"><Label className="text-[10px]">N° Nic</Label>
+              <Input className="h-7 text-xs" value={form.num_nic} onChange={(e) => setForm({ ...form, num_nic: e.target.value })} /></div>
+            <div className="space-y-0.5"><Label className="text-[10px]">N° Commande</Label>
+              <Input className="h-7 text-xs" value={form.num_commande} onChange={(e) => setForm({ ...form, num_commande: e.target.value })} /></div>
+            <div className="space-y-0.5"><Label className="text-[10px]">Multiplicateur</Label>
               <Select value={form.multiplicateur} onValueChange={handleMultiplicateurChange}>
                 <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {MULTIPLICATEURS.map((m) => (
-                    <SelectItem key={m} value={m}>{m}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-0.5">
-              <Label className="text-[10px]">Prix Unitaire (€)</Label>
-              <Input className="h-7 text-xs" type="number" step="0.01" value={form.prix_unitaire ?? ""} onChange={(e) => handlePrixUnitaireChange(e.target.value)} />
-            </div>
-            <div className="space-y-0.5">
-              <Label className="text-[10px]">Prix TTC (€)</Label>
-              <Input className="h-7 text-xs bg-muted" type="number" step="0.01" value={form.prix_ttc ?? ""} readOnly />
-            </div>
-            <div className="space-y-0.5">
-              <Label className="text-[10px]">Acompte (€)</Label>
-              <Input className="h-7 text-xs" type="number" step="0.01" value={form.montant_acompte ?? ""} onChange={(e) => setForm({ ...form, montant_acompte: e.target.value ? parseFloat(e.target.value) : null })} />
-            </div>
-            <div className="space-y-0.5">
-              <Label className="text-[10px]">Mode règlement</Label>
+                <SelectContent>{MULTIPLICATEURS.map((m) => (<SelectItem key={m} value={m}>{m}</SelectItem>))}</SelectContent>
+              </Select></div>
+            <div className="space-y-0.5"><Label className="text-[10px]">Prix Unitaire (€)</Label>
+              <Input className="h-7 text-xs" type="number" step="0.01" value={form.prix_unitaire ?? ""} onChange={(e) => handlePrixUnitaireChange(e.target.value)} /></div>
+            <div className="space-y-0.5"><Label className="text-[10px]">Prix TTC (€)</Label>
+              <Input className="h-7 text-xs bg-muted" type="number" step="0.01" value={form.prix_ttc ?? ""} readOnly /></div>
+            <div className="space-y-0.5"><Label className="text-[10px]">Acompte (€)</Label>
+              <Input className="h-7 text-xs" type="number" step="0.01" value={form.montant_acompte ?? ""} onChange={(e) => setForm({ ...form, montant_acompte: e.target.value ? parseFloat(e.target.value) : null })} /></div>
+            <div className="space-y-0.5"><Label className="text-[10px]">Mode règlement</Label>
               <Select value={form.mode_reglement} onValueChange={(val) => setForm({ ...form, mode_reglement: val })}>
                 <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
-                <SelectContent>
-                  {MODES_REGLEMENT.map((m) => (
-                    <SelectItem key={m} value={m}>{m}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-0.5">
-              <Label className="text-[10px]">N° Facture</Label>
-              <Input className="h-7 text-xs" value={form.num_facture} onChange={(e) => setForm({ ...form, num_facture: e.target.value })} disabled={!comptaMode} placeholder={!comptaMode ? "Réservé compta" : ""} />
-            </div>
+                <SelectContent>{MODES_REGLEMENT.map((m) => (<SelectItem key={m} value={m}>{m}</SelectItem>))}</SelectContent>
+              </Select></div>
+            <div className="space-y-0.5"><Label className="text-[10px]">Chorus</Label>
+              <Select value={form.chorus} onValueChange={(val) => setForm({ ...form, chorus: val })}>
+                <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Non défini" /></SelectTrigger>
+                <SelectContent>{CHORUS_OPTIONS.map((o) => (<SelectItem key={o} value={o}>{o || "Non défini"}</SelectItem>))}</SelectContent>
+              </Select></div>
+            <div className="space-y-0.5"><Label className="text-[10px]">N° Facture</Label>
+              <Input className="h-7 text-xs" value={form.num_facture} onChange={(e) => setForm({ ...form, num_facture: e.target.value })} disabled={!comptaMode} placeholder={!comptaMode ? "Réservé compta" : ""} /></div>
           </div>
           <div className="flex gap-2">
             <Button onClick={handleSave} className="h-7 text-xs"><Pencil className="h-3.5 w-3.5 mr-1" /> {editingId ? "Modifier" : "Ajouter"}</Button>
@@ -347,18 +295,11 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
         </Button>
       )}
 
-      {/* Search */}
       <div className="relative">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-        <Input
-          className="pl-8 h-7 text-xs"
-          placeholder="Rechercher (N° devis, destination, commande...)"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        <Input className="pl-8 h-7 text-xs" placeholder="Rechercher (N° devis, destination, commande...)" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
-      {/* Table */}
       <div className="bg-card border border-border rounded-lg overflow-x-auto print-content">
         <table className="w-full text-[11px]">
           <thead>
@@ -379,6 +320,7 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
               <th className="p-1 text-right whitespace-nowrap">HT</th>
               <th className="p-1 text-right whitespace-nowrap">Acompte</th>
               <th className="p-1 text-left whitespace-nowrap">Règlement</th>
+              <th className="p-1 text-center whitespace-nowrap">Chorus</th>
               <th className="p-1 text-left whitespace-nowrap">N° Facture</th>
               <th className="p-1 text-center no-print w-14 whitespace-nowrap">Actions</th>
             </tr>
@@ -386,9 +328,7 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
           <tbody>
             {filteredBillets.length === 0 ? (
               <tr>
-                <td colSpan={18} className="p-3 text-center text-muted-foreground text-xs">
-                  Aucun billet pour cette période
-                </td>
+                <td colSpan={19} className="p-3 text-center text-muted-foreground text-xs">Aucun billet pour cette période</td>
               </tr>
             ) : (
               filteredBillets.map((b) => (
@@ -409,14 +349,13 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
                   <td className="p-0.5 px-1 whitespace-nowrap text-right">{b.prix_ht?.toFixed(2) || "-"} €</td>
                   <td className="p-0.5 px-1 whitespace-nowrap text-right">{b.montant_acompte?.toFixed(2) || "-"} €</td>
                   <td className="p-0.5 px-1 whitespace-nowrap">{b.mode_reglement || "-"}</td>
+                  <td className="p-0.5 px-1 whitespace-nowrap text-center">
+                    <span className={`px-1 py-0.5 rounded text-[10px] font-medium ${b.chorus === "Oui" ? "bg-green-100 text-green-800" : b.chorus === "Non" ? "bg-red-100 text-red-800" : ""}`}>{b.chorus || "-"}</span>
+                  </td>
                   <td className="p-0.5 px-1 whitespace-nowrap">{b.num_facture || "-"}</td>
                   <td className="p-0.5 px-1 whitespace-nowrap text-center no-print">
-                    <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => handleEdit(b)} title="Modifier">
-                      <Pencil className="h-2.5 w-2.5" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-destructive" onClick={() => handleDelete(b.id)} title="Supprimer">
-                      <Trash2 className="h-2.5 w-2.5" />
-                    </Button>
+                    <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => handleEdit(b)} title="Modifier"><Pencil className="h-2.5 w-2.5" /></Button>
+                    <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-destructive" onClick={() => handleDelete(b.id)} title="Supprimer"><Trash2 className="h-2.5 w-2.5" /></Button>
                   </td>
                 </tr>
               ))
@@ -427,7 +366,7 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
               <td colSpan={11} className="p-1 text-right whitespace-nowrap">TOTAUX :</td>
               <td className="p-1 text-right whitespace-nowrap">{totalTTC.toFixed(2)} €</td>
               <td className="p-1 text-right whitespace-nowrap">{totalHT.toFixed(2)} €</td>
-              <td colSpan={4}></td>
+              <td colSpan={6}></td>
               <td className="p-1 no-print"></td>
             </tr>
           </tfoot>
