@@ -66,15 +66,12 @@ export interface ImportResult {
 }
 
 function findColIndex(headers: any[], searchTerms: string[]): number {
+  // Clean header: remove "n°", "nº", "n.", spaces around it, then lowercase
+  const clean = (s: string) => s.replace(/n[°º\.]\s*/gi, "").replace(/\s+/g, " ").trim().toLowerCase();
   return headers.findIndex((h: any) => {
     if (!h) return false;
-    const hs = h.toString().trim().toLowerCase();
-    return searchTerms.some(t => {
-      // Search as whole word (word boundary) to avoid false matches
-      const escaped = t.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const regex = new RegExp(`\\b${escaped}\\b`, 'i');
-      return regex.test(hs);
-    });
+    const hs = clean(h.toString());
+    return searchTerms.some(t => hs.includes(t.toLowerCase()));
   });
 }
 

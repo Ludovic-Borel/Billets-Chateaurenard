@@ -68,15 +68,28 @@ function excelDateToString(excelDate) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-function findColIndex(headers, terms) {
-  return headers.findIndex((h) => {
-    if (!h) return false;
-    const hs = h.toString().trim().toLowerCase();
-    return terms.some((t) => {
-      const escaped = t.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      return new RegExp('\\b' + escaped + '\\b', 'i').test(hs);
-    });
+function buildColMap(headers, defs) {
+  const clean = headers.map((h) => {
+    if (!h) return "";
+    return h.toString().replace(/n[°º\.]\s*/gi, "").replace(/\s+/g, " ").trim().toLowerCase();
   });
+  const result = {};
+  const used = new Array(headers.length).fill(false);
+  const sorted = [...defs].sort((a, b) => Math.max(...b.terms.map(t => t.length)) - Math.max(...a.terms.map(t => t.length)));
+  for (const def of sorted) {
+    let found = -1;
+    for (const term of def.terms) {
+      const t = term.toLowerCase();
+      for (let i = 0; i < clean.length; i++) {
+        if (used[i]) continue;
+        if (clean[i].includes(t)) { found = i; break; }
+      }
+      if (found >= 0) break;
+    }
+    result[def.key] = found;
+    if (found >= 0) used[found] = true;
+  }
+  return result;
 }
 
 async function main() {
@@ -158,17 +171,25 @@ async function main() {
     if (headerRow === -1) { console.log("  WARN: no headers in", sheetName); continue; }
 
     const headers = data[headerRow];
-    const ci = (terms) => findColIndex(headers, terms);
-    const cm = {
-      num_devis: ci(["n° de devis"]), date: ci(["date"]),
-      destination: ci(["destination"]), client: ci(["client"]),
-      contact: ci(["contact", "mail"]), adresse: ci(["adresse de facturation"]),
-      siret: ci(["siret"]), siren: ci(["siren"]), nic: ci(["nic"]),
-      commande: ci(["n° de commande"]), multiplicateur: ci(["mult"]),
-      prix_unitaire: ci(["prix unit", "prix unitaire"]), prix_ttc: ci(["prix ttc"]),
-      prix_ht: ci(["ht"]), acompte: ci(["acompte"]),
-      reglement: ci(["reglement"]), facture: ci(["facture"]),
-    };
+    const cm = buildColMap(headers, [
+      { key: "num_devis", terms: ["devis"] },
+      { key: "date", terms: ["date"] },
+      { key: "destination", terms: ["destination"] },
+      { key: "client", terms: ["client"] },
+      { key: "contact", terms: ["contact client", "contact"] },
+      { key: "adresse", terms: ["adresse de facturation", "adresse"] },
+      { key: "siret", terms: ["siret"] },
+      { key: "siren", terms: ["siren"] },
+      { key: "nic", terms: ["nic"] },
+      { key: "commande", terms: ["commande"] },
+      { key: "multiplicateur", terms: ["mult"] },
+      { key: "prix_unitaire", terms: ["prix unit"] },
+      { key: "prix_ttc", terms: ["prix ttc", "ttc"] },
+      { key: "prix_ht", terms: ["ht"] },
+      { key: "acompte", terms: ["acompte"] },
+      { key: "reglement", terms: ["reglement"] },
+      { key: "facture", terms: ["facture"] },
+    ]);
 
     let count = 0;
     for (let i = headerRow + 1; i < data.length; i++) {
