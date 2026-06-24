@@ -350,7 +350,7 @@ const sortedBillets = [...filteredBillets].sort((a, b) => {
       <div
   id="billets-scroll"
   className="bg-card border border-border rounded-lg overflow-auto print-content"
-  style={{ height: "calc(100vh - 310px)" }}
+  style={{ height: "calc(100vh - 280px)" }}
 >
         <table className="w-full text-[11px]">
           <thead>
