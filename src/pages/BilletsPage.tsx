@@ -45,7 +45,7 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [comptaMode, setComptaMode] = useState(false);
+  
   const [search, setSearch] = useState("");
 
   const loadData = useCallback(async () => {
@@ -206,6 +206,10 @@ const sortedBillets = [...filteredBillets].sort((a, b) => {
     });
     setEditingId(billet.id);
     setShowForm(true);
+    window.scrollTo({
+  top: 0,
+  behavior: "smooth",
+});
   };
 
   const handleDelete = async (id: string) => {
@@ -256,17 +260,10 @@ const sortedBillets = [...filteredBillets].sort((a, b) => {
         </Button>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant={comptaMode ? "default" : "outline"} size="sm" className="h-7 text-xs"
-            onClick={() => setComptaMode(!comptaMode)} title="Mode Compta (accès N° Facture)">
-            {comptaMode ? <LockOpen className="h-3.5 w-3.5 mr-1" /> : <Lock className="h-3.5 w-3.5 mr-1" />} Compta
-          </Button>
-          <Button size="sm" className="h-7 text-xs" onClick={() => window.print()}>
-            <Printer className="h-3.5 w-3.5 mr-1" /> Imprimer
-          </Button>
-        </div>
+          </div>
       </div>
 
-      {showForm || editingId && (
+      {(showForm || editingId) && (
         <div className="bg-card border border-border rounded-lg p-3 space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
             <div className="space-y-0.5"><Label className="text-[10px]">N° Devis *</Label>
@@ -309,7 +306,7 @@ const sortedBillets = [...filteredBillets].sort((a, b) => {
                 <SelectContent>{MODES_REGLEMENT.map((m) => (<SelectItem key={m} value={m}>{m}</SelectItem>))}</SelectContent>
               </Select></div>
             <div className="space-y-0.5"><Label className="text-[10px]">N° Facture</Label>
-              <Input className="h-7 text-xs" value={form.num_facture} onChange={(e) => setForm({ ...form, num_facture: e.target.value })} disabled={!comptaMode} placeholder={!comptaMode ? "Réservé compta" : ""} /></div>
+              <Input className="h-7 text-xs" value={form.num_facture} onChange={(e) => setForm({ ...form, num_facture: e.target.value })} /></div>
           </div>
           <div className="flex gap-2">
             <Button onClick={handleSave} className="h-7 text-xs"><Pencil className="h-3.5 w-3.5 mr-1" /> {editingId ? "Modifier" : "Ajouter"}</Button>
@@ -383,7 +380,11 @@ const sortedBillets = [...filteredBillets].sort((a, b) => {
               </tr>
             ) : (
               sortedBillets.map((b) => (
-                <tr key={b.id} className="border-t border-border hover:bg-muted/40">
+                <tr
+  key={b.id}
+  className="cursor-pointer hover:bg-muted/50"
+  onDoubleClick={() => handleEdit(b)}
+>
                   <td className="p-0.5 px-1 whitespace-nowrap font-medium">{b.num_devis}</td>
                   <td className="p-0.5 px-1 whitespace-nowrap text-center">{b.date_sortie ? new Date(b.date_sortie.split("T")[0]).toLocaleDateString("fr-FR") : "-"}</td>
                   <td className="p-0.5 px-1 whitespace-nowrap text-center">{b.destination || "-"}</td>
