@@ -323,7 +323,30 @@ const sortedBillets = [...filteredBillets].sort((a, b) => {
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
         <Input className="pl-8 h-7 text-xs" placeholder="Rechercher (N° devis, destination, commande...)" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
+      <div className="mt-2 flex items-center gap-2">
+  <div className="text-xs font-medium text-muted-foreground px-2">
+    Synthèse du mois
+  </div>
 
+  <div className="bg-card border rounded-lg px-3 py-1 min-w-[100px]">
+    <div className="text-[10px] text-muted-foreground text-center">Billets</div>
+    <div className="font-bold text-base text-center">{sortedBillets.length}</div>
+  </div>
+
+  <div className="bg-card border rounded-lg px-3 py-1 min-w-[140px]">
+    <div className="text-[10px] text-muted-foreground text-center">Total TTC</div>
+    <div className="font-bold text-base text-center">
+      {totalTTC.toFixed(2)} €
+    </div>
+  </div>
+
+  <div className="bg-card border rounded-lg px-3 py-1 min-w-[140px]">
+    <div className="text-[10px] text-muted-foreground text-center">Total HT</div>
+    <div className="font-bold text-base text-center">
+      {totalHT.toFixed(2)} €
+    </div>
+  </div>
+</div>
       <div
   id="billets-scroll"
   className="bg-card border border-border rounded-lg overflow-auto print-content"
@@ -332,24 +355,24 @@ const sortedBillets = [...filteredBillets].sort((a, b) => {
         <table className="w-full text-[11px]">
           <thead>
             <tr className="bg-primary text-primary-foreground sticky top-0 z-10">
-              <th className="p-1 text-left whitespace-nowrap">N° Devis</th>
-              <th className="p-1 text-left whitespace-nowrap">Date</th>
-              <th className="p-1 text-left whitespace-nowrap">Destination</th>
-              <th className="p-1 text-left whitespace-nowrap">Client</th>
-              <th className="p-1 text-left whitespace-nowrap">Contact</th>
-              <th className="p-1 text-left whitespace-nowrap">Adresse fact.</th>
-              <th className="p-1 text-left whitespace-nowrap">Siret</th>
-              <th className="p-1 text-left whitespace-nowrap">Siren</th>
-              <th className="p-1 text-left whitespace-nowrap">Nic</th>
-              <th className="p-1 text-left whitespace-nowrap">N° Cde</th>
+              <th className="p-1 text-center whitespace-nowrap">N° Devis</th>
+              <th className="p-1 text-center whitespace-nowrap">Date</th>
+              <th className="p-1 text-center whitespace-nowrap">Destination</th>
+              <th className="p-1 text-center whitespace-nowrap">Client</th>
+              <th className="p-1 text-center whitespace-nowrap">Contact</th>
+              <th className="p-1 text-center whitespace-nowrap">Adresse fact.</th>
+              <th className="p-1 text-center whitespace-nowrap">Siret</th>
+              <th className="p-1 text-center whitespace-nowrap">Siren</th>
+              <th className="p-1 text-center whitespace-nowrap">Nic</th>
+              <th className="p-1 text-center whitespace-nowrap">N° Cde</th>
               <th className="p-1 text-center whitespace-nowrap">Mult</th>
-              <th className="p-1 text-right whitespace-nowrap">Prix U.</th>
-              <th className="p-1 text-right whitespace-nowrap">TTC</th>
-              <th className="p-1 text-right whitespace-nowrap">HT</th>
-              <th className="p-1 text-right whitespace-nowrap">Acompte</th>
-              <th className="p-1 text-left whitespace-nowrap">Règlement</th>
+              <th className="p-1 text-center whitespace-nowrap">Prix U.</th>
+              <th className="p-1 text-center whitespace-nowrap">TTC</th>
+              <th className="p-1 text-center whitespace-nowrap">HT</th>
+              <th className="p-1 text-center whitespace-nowrap">Acompte</th>
+              <th className="p-1 text-center whitespace-nowrap">Règlement</th>
               <th className="p-1 text-center whitespace-nowrap">Chorus</th>
-              <th className="p-1 text-left whitespace-nowrap">N° Facture</th>
+              <th className="p-1 text-center whitespace-nowrap">N° Facture</th>
               <th className="p-1 text-center no-print w-14 whitespace-nowrap">Actions</th>
             </tr>
           </thead>
@@ -362,21 +385,21 @@ const sortedBillets = [...filteredBillets].sort((a, b) => {
               sortedBillets.map((b) => (
                 <tr key={b.id} className="border-t border-border hover:bg-muted/40">
                   <td className="p-0.5 px-1 whitespace-nowrap font-medium">{b.num_devis}</td>
-                  <td className="p-0.5 px-1 whitespace-nowrap">{b.date_sortie ? new Date(b.date_sortie.split("T")[0]).toLocaleDateString("fr-FR") : "-"}</td>
-                  <td className="p-0.5 px-1 whitespace-nowrap">{b.destination || "-"}</td>
-                  <td className="p-0.5 px-1 whitespace-nowrap">{getClientField(b.client_id, "nom") || "(Client inconnu)"}</td>
-                  <td className="p-0.5 px-1 whitespace-nowrap">{b.contact_client || "-"}</td>
-                  <td className="p-0.5 px-1 whitespace-nowrap">{b.adresse_facturation || "-"}</td>
-                  <td className="p-0.5 px-1 whitespace-nowrap">{b.num_siret || "-"}</td>
-                  <td className="p-0.5 px-1 whitespace-nowrap">{b.num_siren || "-"}</td>
-                  <td className="p-0.5 px-1 whitespace-nowrap">{b.num_nic || "-"}</td>
-                  <td className="p-0.5 px-1 whitespace-nowrap">{b.num_commande || "-"}</td>
+                  <td className="p-0.5 px-1 whitespace-nowrap text-center">{b.date_sortie ? new Date(b.date_sortie.split("T")[0]).toLocaleDateString("fr-FR") : "-"}</td>
+                  <td className="p-0.5 px-1 whitespace-nowrap text-center">{b.destination || "-"}</td>
+                  <td className="p-0.5 px-1 whitespace-nowrap text-center">{getClientField(b.client_id, "nom") || "(Client inconnu)"}</td>
+                  <td className="p-0.5 px-1 whitespace-nowrap text-center">{b.contact_client || "-"}</td>
+                  <td className="p-0.5 px-1 whitespace-nowrap text-center">{b.adresse_facturation || "-"}</td>
+                  <td className="p-0.5 px-1 whitespace-nowrap text-center">{b.num_siret || "-"}</td>
+                  <td className="p-0.5 px-1 whitespace-nowrap text-center">{b.num_siren || "-"}</td>
+                  <td className="p-0.5 px-1 whitespace-nowrap text-center">{b.num_nic || "-"}</td>
+                  <td className="p-0.5 px-1 whitespace-nowrap text-center">{b.num_commande || "-"}</td>
                   <td className="p-0.5 px-1 whitespace-nowrap text-center">{b.multiplicateur || "-"}</td>
                   <td className="p-0.5 px-1 whitespace-nowrap text-right">{b.prix_unitaire?.toFixed(2) || "-"} €</td>
                   <td className="p-0.5 px-1 whitespace-nowrap text-right font-medium">{b.prix_ttc?.toFixed(2) || "-"} €</td>
                   <td className="p-0.5 px-1 whitespace-nowrap text-right">{b.prix_ht?.toFixed(2) || "-"} €</td>
                   <td className="p-0.5 px-1 whitespace-nowrap text-right">{b.montant_acompte?.toFixed(2) || "-"} €</td>
-                  <td className="p-0.5 px-1 whitespace-nowrap">{b.mode_reglement || "-"}</td>
+                  <td className="p-0.5 px-1 whitespace-nowrap text-center">{b.mode_reglement || "-"}</td>
                   <td className="p-0.5 px-1 whitespace-nowrap text-center">
   <span
     className={`px-1 py-0.5 rounded text-[10px] font-medium ${
@@ -390,7 +413,7 @@ const sortedBillets = [...filteredBillets].sort((a, b) => {
     {b.chorus || "-"}
   </span>
 </td>
-                  <td className="p-0.5 px-1 whitespace-nowrap">{b.num_facture || "-"}</td>
+                  <td className="p-0.5 px-1 whitespace-nowrap text-center">{b.num_facture || "-"}</td>
                   <td className="p-0.5 px-1 whitespace-nowrap text-center no-print">
                     <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => handleEdit(b)} title="Modifier"><Pencil className="h-2.5 w-2.5" /></Button>
                     <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-destructive" onClick={() => handleDelete(b.id)} title="Supprimer"><Trash2 className="h-2.5 w-2.5" /></Button>
@@ -401,26 +424,6 @@ const sortedBillets = [...filteredBillets].sort((a, b) => {
           </tbody>          
         </table>
       </div>
-      <div className="mt-2 flex gap-2 justify-end">
-  <div className="bg-card border rounded-lg px-4 py-2 min-w-[120px]">
-    <div className="text-xs text-muted-foreground">Billets</div>
-    <div className="font-bold text-lg">{sortedBillets.length}</div>
-  </div>
-
-  <div className="bg-card border rounded-lg px-4 py-2 min-w-[160px]">
-    <div className="text-xs text-muted-foreground">Total TTC</div>
-    <div className="font-bold text-lg">
-      {totalTTC.toFixed(2)} €
-    </div>
-  </div>
-
-  <div className="bg-card border rounded-lg px-4 py-2 min-w-[160px]">
-    <div className="text-xs text-muted-foreground">Total HT</div>
-    <div className="font-bold text-lg">
-      {totalHT.toFixed(2)} €
-    </div>
-  </div>
-</div>
     </div>
   );
 }
