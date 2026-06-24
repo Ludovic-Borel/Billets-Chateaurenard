@@ -382,7 +382,7 @@ const sortedBillets = [...filteredBillets].sort((a, b) => {
               sortedBillets.map((b) => (
                 <tr
   key={b.id}
-  className="cursor-pointer hover:bg-muted/50"
+  className="cursor-pointer hover:bg-muted/50 select-none"
   onDoubleClick={() => handleEdit(b)}
 >
                   <td className="p-0.5 px-1 whitespace-nowrap font-medium">{b.num_devis}</td>
