@@ -82,7 +82,7 @@ export default function Index() {
         </div>
       </div>
 
-      <main className="w-full px-4 py-4">
+      <main className="w-full px-4 py-4 overflow-hidden">
         {activeView === "clients" ? (
           <ClientsPage />
         ) : (

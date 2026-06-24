@@ -308,7 +308,7 @@ useEffect(() => {
       <div
   id="billets-scroll"
   className="bg-card border border-border rounded-lg overflow-auto print-content"
-  style={{ height: "calc(100vh - 250px)" }}
+  style={{ height: "calc(100vh - 320px)" }}
 >
         <table className="w-full text-[11px]">
           <thead>
