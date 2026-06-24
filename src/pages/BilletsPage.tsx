@@ -101,11 +101,16 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
 
   const handleSave = async () => {
     if (!form.num_devis.trim()) {
-      toast.error("Le numéro de devis est obligatoire");
-      return;
-    }
+  const continuer = window.confirm(
+    "Aucun numéro de devis n'a été saisi.\n\nCréer le billet sans numéro de devis ?"
+  );
 
-    const formatedNumDevis = formatNumDevis(form.num_devis, year);
+  if (!continuer) return;
+}
+
+    const formatedNumDevis = form.num_devis.trim()
+  ? formatNumDevis(form.num_devis, year)
+  : "";
 
     const billetData = {
       type: selectedType as "standard" | "tarascon" | "avignon",
