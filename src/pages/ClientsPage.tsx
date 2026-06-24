@@ -42,7 +42,12 @@ export function ClientsPage() {
       siret: client.siret || "",
       siren: client.siren || "",
       nic: client.nic || "",
-      chorus: client.chorus || "",
+      chorus:
+  client.chorus === true
+    ? "Oui"
+    : client.chorus === false
+    ? "Non"
+    : "",
     });
     setEditingId(client.id);
   };
@@ -58,7 +63,13 @@ export function ClientsPage() {
       return;
     }
     if (editingId) {
-      const ok = await updateClient(editingId, form);
+  const ok = await updateClient(
+    editingId,
+    {
+      ...form,
+      chorus: form.chorus === "Oui",
+    } as any
+  );
       if (ok) {
         toast.success("Client modifié");
         loadClients();
@@ -68,7 +79,15 @@ export function ClientsPage() {
         toast.error("Erreur lors de la modification");
       }
     } else {
-      const result = await addClient(form);
+      const result = await addClient({
+  ...form,
+  chorus:
+    form.chorus === "Oui"
+      ? true
+      : form.chorus === "Non"
+      ? false
+      : false,
+} as any);
       if (result) {
         toast.success("Client ajouté");
         loadClients();
@@ -123,7 +142,22 @@ export function ClientsPage() {
           </div>
           <div className="space-y-0.5">
             <Label className="text-[10px]" htmlFor="siret">Siret</Label>
-            <Input className="h-7 text-xs" id="siret" value={form.siret} onChange={(e) => setForm({ ...form, siret: e.target.value })} placeholder="N° Siret" />
+            <Input
+  className="h-7 text-xs"
+  id="siret"
+  value={form.siret}
+  onChange={(e) => {
+    const siret = e.target.value.replace(/\D/g, "");
+
+    setForm({
+      ...form,
+      siret,
+      siren: siret.length >= 9 ? siret.slice(0, 9) : "",
+      nic: siret.length >= 14 ? siret.slice(9, 14) : "",
+    });
+  }}
+  placeholder="N° Siret"
+/>
           </div>
           <div className="space-y-0.5">
             <Label className="text-[10px]" htmlFor="siren">Siren</Label>
@@ -199,10 +233,22 @@ export function ClientsPage() {
                     <td className="p-0.5 px-1 whitespace-nowrap text-muted-foreground">{client.siren}</td>
                     <td className="p-0.5 px-1 whitespace-nowrap text-muted-foreground">{client.nic}</td>
                     <td className="p-0.5 px-1 whitespace-nowrap text-center">
-                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${client.chorus === "Oui" ? "bg-green-100 text-green-800" : client.chorus === "Non" ? "bg-red-100 text-red-800" : ""}`}>
-                        {client.chorus || "-"}
-                      </span>
-                    </td>
+  <span
+    className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+      client.chorus === true
+        ? "bg-green-100 text-green-800"
+        : client.chorus === false
+        ? "bg-red-100 text-red-800"
+        : ""
+    }`}
+  >
+    {client.chorus === true
+      ? "Oui"
+      : client.chorus === false
+      ? "Non"
+      : "-"}
+  </span>
+</td>
                     <td className="p-0.5 px-1 whitespace-nowrap text-center">
                       <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={(e) => { e.stopPropagation(); handleSelect(client); }} title="Modifier">
                         <Pencil className="h-2.5 w-2.5" />

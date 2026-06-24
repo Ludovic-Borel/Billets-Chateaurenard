@@ -111,7 +111,7 @@ export async function importFromXLSM(source: string | ArrayBuffer): Promise<Impo
           siret: row[cl.siret]?.toString().trim() || "",
           siren: row[cl.siren]?.toString().trim() || "",
           nic: row[cl.nic]?.toString().trim() || "",
-          chorus: row[cl.chorus]?.toString().trim() || "",
+          chorus: row[cl.chorus]?.toString().trim().toLowerCase() === "oui",
         });
         if (error) result.erreurs.push(`Erreur client ${nom}: ${error.message}`);
         else result.clientsImportes++;
@@ -145,7 +145,9 @@ export async function importFromXLSM(source: string | ArrayBuffer): Promise<Impo
       { key: "commande", terms: ["commande"] }, { key: "multiplicateur", terms: ["mult"] },
       { key: "prix_unitaire", terms: ["prix unit"] }, { key: "prix_ttc", terms: ["prix ttc", "ttc"] },
       { key: "prix_ht", terms: ["ht"] }, { key: "acompte", terms: ["acompte"] },
-      { key: "reglement", terms: ["reglement"] }, { key: "facture", terms: ["facture"] },
+      { key: "reglement", terms: ["reglement"] },
+      { key: "chorus", terms: ["chorus"] }, 
+      { key: "facture", terms: ["facture"] },
     ]);
 
     let consecutiveEmpty = 0;
@@ -213,6 +215,7 @@ export async function importFromXLSM(source: string | ArrayBuffer): Promise<Impo
         prix_ttc: parseNum(row[cm.prix_ttc]), prix_ht: parseNum(row[cm.prix_ht]),
         montant_acompte: parseNum(row[cm.acompte]),
         mode_reglement: row[cm.reglement]?.toString().trim() || "",
+        chorus: row[cm.chorus]?.toString().trim() || "",
         num_facture: row[cm.facture]?.toString().trim() || "",
       };
 

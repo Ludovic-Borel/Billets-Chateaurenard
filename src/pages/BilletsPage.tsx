@@ -341,8 +341,18 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
                   <td className="p-0.5 px-1 whitespace-nowrap text-right">{b.montant_acompte?.toFixed(2) || "-"} €</td>
                   <td className="p-0.5 px-1 whitespace-nowrap">{b.mode_reglement || "-"}</td>
                   <td className="p-0.5 px-1 whitespace-nowrap text-center">
-                    <span className={`px-1 py-0.5 rounded text-[10px] font-medium ${getClientField(b.client_id, "chorus") === "Oui" ? "bg-green-100 text-green-800" : getClientField(b.client_id, "chorus") === "Non" ? "bg-red-100 text-red-800" : ""}`}>{getClientField(b.client_id, "chorus") || "-"}</span>
-                  </td>
+  <span
+    className={`px-1 py-0.5 rounded text-[10px] font-medium ${
+      b.chorus === "Oui"
+        ? "bg-green-100 text-green-800"
+        : b.chorus === "Non"
+        ? "bg-red-100 text-red-800"
+        : ""
+    }`}
+  >
+    {b.chorus || "-"}
+  </span>
+</td>
                   <td className="p-0.5 px-1 whitespace-nowrap">{b.num_facture || "-"}</td>
                   <td className="p-0.5 px-1 whitespace-nowrap text-center no-print">
                     <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => handleEdit(b)} title="Modifier"><Pencil className="h-2.5 w-2.5" /></Button>
