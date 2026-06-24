@@ -64,21 +64,40 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
 
   const typeLabel = BILLET_TYPES.find((t) => t.value === selectedType)?.label || selectedType;
 
-  const filteredBillets = billets.filter((b) =>
-    !search ||
-    b.num_devis.toLowerCase().includes(search.toLowerCase()) ||
-    (b.destination && b.destination.toLowerCase().includes(search.toLowerCase())) ||
-    (b.num_commande && b.num_commande.toLowerCase().includes(search.toLowerCase()))
-  );
-useEffect(() => {
-  const el = document.getElementById("billets-scroll");
+  const filteredBillets = billets.filter((b) => {
+  if (!search) return true;
 
-  if (el) {
-    setTimeout(() => {
-      el.scrollTop = el.scrollHeight;
-    }, 100);
-  }
-}, [selectedType]);
+  const s = search.toLowerCase();
+
+  const clientNom = (getClientField(b.client_id, "nom") || "").toLowerCase();
+
+  return (
+    (b.num_devis || "").toLowerCase().includes(s) ||
+    (b.destination || "").toLowerCase().includes(s) ||
+    (b.contact_client || "").toLowerCase().includes(s) ||
+    (b.adresse_facturation || "").toLowerCase().includes(s) ||
+    (b.num_siret || "").toLowerCase().includes(s) ||
+    (b.num_siren || "").toLowerCase().includes(s) ||
+    (b.num_nic || "").toLowerCase().includes(s) ||
+    (b.num_commande || "").toLowerCase().includes(s) ||
+    (b.mode_reglement || "").toLowerCase().includes(s) ||
+    (b.num_facture || "").toLowerCase().includes(s) ||
+    (b.chorus || "").toLowerCase().includes(s) ||
+    clientNom.includes(s) ||
+    String(b.prix_unitaire || "").includes(search) ||
+    String(b.prix_ttc || "").includes(search) ||
+    String(b.prix_ht || "").includes(search) ||
+    String(b.montant_acompte || "").includes(search)
+  );
+});
+
+const sortedBillets = [...filteredBillets].sort((a, b) => {
+  const da = a.date_sortie || "";
+  const db = b.date_sortie || "";
+
+  return db.localeCompare(da);
+});
+
   const handleClientSelect = (clientId: string) => {
     const client = clients.find((c) => c.id === clientId);
     if (client) {
@@ -340,7 +359,7 @@ useEffect(() => {
                 <td colSpan={19} className="p-3 text-center text-muted-foreground text-xs">Aucun billet pour cette période</td>
               </tr>
             ) : (
-              filteredBillets.map((b) => (
+              sortedBillets.map((b) => (
                 <tr key={b.id} className="border-t border-border hover:bg-muted/40">
                   <td className="p-0.5 px-1 whitespace-nowrap font-medium">{b.num_devis}</td>
                   <td className="p-0.5 px-1 whitespace-nowrap">{b.date_sortie ? new Date(b.date_sortie.split("T")[0]).toLocaleDateString("fr-FR") : "-"}</td>
@@ -379,18 +398,29 @@ useEffect(() => {
                 </tr>
               ))
             )}
-          </tbody>
-          <tfoot>
-            <tr className="bg-grid-total font-bold border-t-2 border-border">
-              <td colSpan={11} className="p-1 text-right whitespace-nowrap">TOTAUX :</td>
-              <td className="p-1 text-right whitespace-nowrap">{totalTTC.toFixed(2)} €</td>
-              <td className="p-1 text-right whitespace-nowrap">{totalHT.toFixed(2)} €</td>
-              <td colSpan={6}></td>
-              <td className="p-1 no-print"></td>
-            </tr>
-          </tfoot>
+          </tbody>          
         </table>
       </div>
+      <div className="mt-2 flex gap-2 justify-end">
+  <div className="bg-card border rounded-lg px-4 py-2 min-w-[120px]">
+    <div className="text-xs text-muted-foreground">Billets</div>
+    <div className="font-bold text-lg">{sortedBillets.length}</div>
+  </div>
+
+  <div className="bg-card border rounded-lg px-4 py-2 min-w-[160px]">
+    <div className="text-xs text-muted-foreground">Total TTC</div>
+    <div className="font-bold text-lg">
+      {totalTTC.toFixed(2)} €
+    </div>
+  </div>
+
+  <div className="bg-card border rounded-lg px-4 py-2 min-w-[160px]">
+    <div className="text-xs text-muted-foreground">Total HT</div>
+    <div className="font-bold text-lg">
+      {totalHT.toFixed(2)} €
+    </div>
+  </div>
+</div>
     </div>
   );
 }
