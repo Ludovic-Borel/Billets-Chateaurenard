@@ -60,6 +60,7 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
   }, [selectedType, month, year]);
 
   useEffect(() => { loadData(); }, [loadData]);
+  
 
   const typeLabel = BILLET_TYPES.find((t) => t.value === selectedType)?.label || selectedType;
 
@@ -69,7 +70,15 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
     (b.destination && b.destination.toLowerCase().includes(search.toLowerCase())) ||
     (b.num_commande && b.num_commande.toLowerCase().includes(search.toLowerCase()))
   );
+useEffect(() => {
+  const el = document.getElementById("billets-scroll");
 
+  if (el) {
+    setTimeout(() => {
+      el.scrollTop = el.scrollHeight;
+    }, 100);
+  }
+}, [selectedType]);
   const handleClientSelect = (clientId: string) => {
     const client = clients.find((c) => c.id === clientId);
     if (client) {
@@ -296,10 +305,14 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
         <Input className="pl-8 h-7 text-xs" placeholder="Rechercher (N° devis, destination, commande...)" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
-      <div className="bg-card border border-border rounded-lg overflow-x-auto print-content">
+      <div
+  id="billets-scroll"
+  className="bg-card border border-border rounded-lg overflow-auto print-content"
+  style={{ height: "calc(100vh - 250px)" }}
+>
         <table className="w-full text-[11px]">
           <thead>
-            <tr className="bg-primary text-primary-foreground">
+            <tr className="bg-primary text-primary-foreground sticky top-0 z-10">
               <th className="p-1 text-left whitespace-nowrap">N° Devis</th>
               <th className="p-1 text-left whitespace-nowrap">Date</th>
               <th className="p-1 text-left whitespace-nowrap">Destination</th>
