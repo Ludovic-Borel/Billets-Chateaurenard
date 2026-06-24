@@ -36,7 +36,12 @@ function excelDateToString(excelDate: number): string {
 export interface ImportResult {
   clientsImportes: number;
   clientsIgnores: number;
-  billetsImportes: { standard: number; tarascon: number; avignon: number };
+  billetsIgnores: number;
+  billetsImportes: {
+    standard: number;
+    tarascon: number;
+    avignon: number;
+  };
   erreurs: string[];
 }
 
@@ -66,8 +71,14 @@ function buildColMap(headers: any[], defs: { key: string; terms: string[] }[]): 
 
 export async function importFromXLSM(source: string | ArrayBuffer): Promise<ImportResult> {
   const result: ImportResult = {
-    clientsImportes: 0, clientsIgnores: 0,
-    billetsImportes: { standard: 0, tarascon: 0, avignon: 0 },
+    clientsImportes: 0,
+    clientsIgnores: 0,
+    billetsIgnores: 0, // <-- AJOUTER
+    billetsImportes: {
+      standard: 0,
+      tarascon: 0,
+      avignon: 0
+    },
     erreurs: [],
   };
 
@@ -219,6 +230,21 @@ export async function importFromXLSM(source: string | ArrayBuffer): Promise<Impo
         num_facture: row[cm.facture]?.toString().trim() || "",
       };
 
+if (billetData.num_devis) {
+  const { data: existing } = await supabase
+    .from("billets")
+    .select("id")
+    .eq("num_devis", billetData.num_devis)
+    .eq("type", billetData.type)
+    .eq("mois", billetData.mois)
+    .eq("annee", billetData.annee)
+    .limit(1);
+
+  if (existing && existing.length > 0) {
+  result.billetsIgnores++;
+  continue;
+}
+}
       const { error } = await supabase.from("billets").insert(billetData);
       if (error) result.erreurs.push(`Erreur: ${error.message} (devis:${num_devis || "vide"} client:${clientName})`);
       else result.billetsImportes[sheetInfo.type]++;
