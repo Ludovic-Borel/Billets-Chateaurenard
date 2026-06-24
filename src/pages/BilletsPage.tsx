@@ -251,6 +251,9 @@ const sortedBillets = [...filteredBillets].sort((a, b) => {
                 onClick={() => { setSelectedType(t.value); resetForm(); }}>{t.label}</Button>
             ))}
           </div>
+          <Button className="h-7 text-xs" onClick={() => setShowForm(true)}>
+          <Plus className="h-3.5 w-3.5 mr-1" /> Nouveau Billet
+        </Button>
         </div>
         <div className="flex items-center gap-2">
           <Button variant={comptaMode ? "default" : "outline"} size="sm" className="h-7 text-xs"
@@ -263,7 +266,7 @@ const sortedBillets = [...filteredBillets].sort((a, b) => {
         </div>
       </div>
 
-      {showForm || editingId ? (
+      {showForm || editingId && (
         <div className="bg-card border border-border rounded-lg p-3 space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
             <div className="space-y-0.5"><Label className="text-[10px]">N° Devis *</Label>
@@ -313,10 +316,7 @@ const sortedBillets = [...filteredBillets].sort((a, b) => {
             <Button variant="outline" className="h-7 text-xs" onClick={resetForm}>Annuler</Button>
           </div>
         </div>
-      ) : (
-        <Button className="h-7 text-xs" onClick={() => setShowForm(true)}>
-          <Plus className="h-3.5 w-3.5 mr-1" /> Nouveau billet
-        </Button>
+         
       )}
 
       <div className="relative">
@@ -350,7 +350,7 @@ const sortedBillets = [...filteredBillets].sort((a, b) => {
       <div
   id="billets-scroll"
   className="bg-card border border-border rounded-lg overflow-auto print-content"
-  style={{ height: "calc(100vh - 340px)" }}
+  style={{ height: "calc(100vh - 310px)" }}
 >
         <table className="w-full text-[11px]">
           <thead>
