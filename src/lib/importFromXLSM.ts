@@ -230,21 +230,7 @@ export async function importFromXLSM(source: string | ArrayBuffer): Promise<Impo
         num_facture: row[cm.facture]?.toString().trim() || "",
       };
 
-if (billetData.num_devis) {
-  const { data: existing } = await supabase
-    .from("billets")
-    .select("id")
-    .eq("num_devis", billetData.num_devis)
-    .eq("type", billetData.type)
-    .eq("mois", billetData.mois)
-    .eq("annee", billetData.annee)
-    .limit(1);
 
-  if (existing && existing.length > 0) {
-  result.billetsIgnores++;
-  continue;
-}
-}
       const { error } = await supabase.from("billets").insert(billetData);
       if (error) result.erreurs.push(`Erreur: ${error.message} (devis:${num_devis || "vide"} client:${clientName})`);
       else result.billetsImportes[sheetInfo.type]++;
