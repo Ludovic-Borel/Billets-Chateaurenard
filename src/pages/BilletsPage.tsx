@@ -17,7 +17,9 @@ interface BilletsPageProps {
   month: number;
   selectedType: "standard" | "tarascon" | "avignon";
   onTypeChange: (type: "standard" | "tarascon" | "avignon") => void;
-  refreshKey: number;
+
+  showForm: boolean;
+  setShowForm: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const emptyBillet = (): BilletFormData => ({
@@ -45,13 +47,14 @@ export function BilletsPage({
   month,
   selectedType,
   onTypeChange,
+  showForm,
+  setShowForm,
 }: BilletsPageProps) {
   const [billets, setBillets] = useState<Billet[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [form, setForm] = useState<BilletFormData>(emptyBillet());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
   const tableRef = useRef<HTMLDivElement>(null);
   
   const [search, setSearch] = useState("");
@@ -75,12 +78,6 @@ export function BilletsPage({
   }, [selectedType, month, year]);
 
   useEffect(() => { loadData(); }, [loadData]);
-
-  useEffect(() => {
-  loadData();
-}, [loadData]);
-
-  const typeLabel = BILLET_TYPES.find((t) => t.value === selectedType)?.label || selectedType;
 
   const filteredBillets = billets.filter((b) => {
   if (!search) return true;
@@ -300,37 +297,7 @@ const sortedBillets = [...filteredBillets].sort((a, b) => {
   }
 
   return (
-    <div className="space-y-3 animate-fade-in">
-
-      <div className="flex items-center justify-between mb-2">
-
-  <div className="flex items-center gap-1">
-    {BILLET_TYPES.map((t) => (
-      <Button
-        key={t.value}
-        variant={selectedType === t.value ? "default" : "outline"}
-        size="sm"
-        className="h-8"
-        onClick={() => {
-          onTypeChange(t.value as "standard" | "tarascon" | "avignon");
-          resetForm();
-        }}
-      >
-        {t.label.replace("Marchés ", "")}
-      </Button>
-    ))}
-  </div>
-
-  <Button
-    size="sm"
-    className="h-8"
-    onClick={() => setShowForm(true)}
-  >
-    <Plus className="h-4 w-4 mr-1" />
-    Billet
-  </Button>
-
-</div>
+  <div className="space-y-3 pt-2 animate-fade-in">
 
       {(showForm || editingId) && (
         <div className="bg-card border border-border rounded-lg p-3 space-y-3">

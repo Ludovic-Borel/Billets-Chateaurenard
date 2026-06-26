@@ -1,4 +1,6 @@
 import { useState, useRef, useCallback } from "react";
+import { MainToolbar } from "@/components/MainToolbar";
+import { BilletsToolbar } from "@/components/BilletsToolbar";
 import { Header } from "@/components/Header";
 import { MonthSelector } from "@/components/MonthSelector";
 import { ClientsPage } from "@/pages/ClientsPage";
@@ -26,6 +28,7 @@ export default function Index() {
   const [activeView, setActiveView] = useState<
     "clients" | "billets"
   >("billets");
+  const [showForm, setShowForm] = useState(false);
 
   const [importing, setImporting] = useState(false);
 
@@ -35,12 +38,10 @@ export default function Index() {
     async (files: FileList | null) => {
       if (!files?.length) return;
 
-      const file = files[0];
-
       setImporting(true);
 
       try {
-        const buffer = await file.arrayBuffer();
+        const buffer = await files[0].arrayBuffer();
 
         const result = await importFromXLSM(
           buffer,
@@ -63,12 +64,13 @@ export default function Index() {
           );
         }
       } catch (e: any) {
-        toast.error(e.message);
+        toast.error(`Erreur d'import : ${e.message}`);
       } finally {
         setImporting(false);
 
-        if (fileInputRef.current)
+        if (fileInputRef.current) {
           fileInputRef.current.value = "";
+        }
       }
     },
     [month, year, selectedType]
@@ -79,106 +81,100 @@ export default function Index() {
 
       <Header />
 
-      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b">
+      <MainToolbar
+  left={
+    <>
+      <MonthSelector
+        year={year}
+        month={month}
+        onChange={(y, m) => {
+          setYear(y);
+          setMonth(m);
+        }}
+      />
 
-        <div className="w-full px-6 py-2 flex items-center justify-between">
+      <Button
+        variant={activeView === "clients" ? "default" : "outline"}
+        size="sm"
+        className="h-7 text-xs"
+        onClick={() => setActiveView("clients")}
+      >
+        <Users className="h-3.5 w-3.5 mr-1" />
+        Clients
+      </Button>
 
-          <div className="flex items-center gap-3">
+      <Button
+        variant={activeView === "billets" ? "default" : "outline"}
+        size="sm"
+        className="h-7 text-xs"
+        onClick={() => setActiveView("billets")}
+      >
+        <FileText className="h-3.5 w-3.5 mr-1" />
+        Saisie
+      </Button>
+    </>
+  }
 
-            <MonthSelector
-              year={year}
-              month={month}
-              onChange={(y, m) => {
-                setYear(y);
-                setMonth(m);
-              }}
-            />
+  center={
+  activeView === "billets" ? (
+    <BilletsToolbar
+      selectedType={selectedType}
+      onTypeChange={setSelectedType}
+      onNewBillet={() => setShowForm(true)}
+    />
+  ) : null
+}
 
-            <Button
-              variant={
-                activeView === "clients"
-                  ? "default"
-                  : "outline"
-              }
-              size="sm"
-              className="h-7 text-xs"
-              onClick={() => setActiveView("clients")}
-            >
-              <Users className="mr-1 h-3.5 w-3.5" />
-              Clients
-            </Button>
+  right={
+    <>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".xlsm,.xlsx"
+        className="hidden"
+        onChange={(e) => handleImport(e.target.files)}
+      />
 
-            <Button
-              variant={
-                activeView === "billets"
-                  ? "default"
-                  : "outline"
-              }
-              size="sm"
-              className="h-7 text-xs"
-              onClick={() => setActiveView("billets")}
-            >
-              <FileText className="mr-1 h-3.5 w-3.5" />
-              Saisie
-            </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-7 text-xs"
+        onClick={() =>
+          toast.info("Synchronisation bientôt disponible")
+        }
+      >
+        <RefreshCw className="h-3.5 w-3.5 mr-1" />
+        Sync
+      </Button>
 
-          </div>
+      <Button
+        size="sm"
+        className="h-7 text-xs"
+        disabled={importing}
+        onClick={() => fileInputRef.current?.click()}
+      >
+        <Upload className="h-3.5 w-3.5 mr-1" />
+        {importing ? "Import..." : "Import"}
+      </Button>
+    </>
+  }
+/>
 
-          <div className="flex items-center gap-2">
+        <main className="w-full px-6 pt-2 pb-4 overflow-hidden">
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsm,.xlsx"
-              className="hidden"
-              onChange={(e) =>
-                handleImport(e.target.files)
-              }
-            />
-
-            <Button
-              size="sm"
-              className="h-7 text-xs"
-              disabled={importing}
-              onClick={() =>
-                fileInputRef.current?.click()
-              }
-            >
-              <Upload className="mr-1 h-3.5 w-3.5" />
-              {importing ? "Import..." : "Import"}
-            </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs"
-              onClick={() =>
-                toast.info(
-                  "Synchronisation bientôt disponible"
-                )
-              }
-            >
-              <RefreshCw className="mr-1 h-3.5 w-3.5" />
-              Sync
-            </Button>
-
-          </div>
-
-        </div>
-
-      </div>
-
-      <main className="w-full px-4 py-4 overflow-hidden">
         {activeView === "clients" ? (
           <ClientsPage />
         ) : (
           <BilletsPage
-            year={year}
-            month={month}
-            selectedType={selectedType}
-            onTypeChange={setSelectedType}
-          />
+  year={year}
+  month={month}
+  selectedType={selectedType}
+  onTypeChange={setSelectedType}
+  showForm={showForm}
+  setShowForm={setShowForm}
+/>
         )}
+
       </main>
 
     </div>
