@@ -352,35 +352,63 @@ const sortedBillets = [...filteredBillets].sort((a, b) => {
          
       )}
 
-      <div className="relative">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-        <Input className="pl-8 h-7 text-xs" placeholder="Rechercher (N° devis, destination, commande...)" value={search} onChange={(e) => setSearch(e.target.value)} />
+      <div className="mt-2">
+
+    <div className="flex items-center gap-4">
+
+    <div className="text-xs font-medium text-muted-foreground whitespace-nowrap px-2">
+  Synthèse du mois
+</div>  
+
+    <div className="flex items-center gap-2">
+
+      <div className="bg-card border rounded-lg px-3 py-1 min-w-[100px]">
+        <div className="text-[10px] text-muted-foreground text-center">
+          Billets
+        </div>
+        <div className="font-bold text-base text-center">
+          {sortedBillets.length}
+        </div>
       </div>
-      <div className="mt-2 flex items-center gap-2">
-  <div className="text-xs font-medium text-muted-foreground px-2">
-    Synthèse du mois
-  </div>
 
-  <div className="bg-card border rounded-lg px-3 py-1 min-w-[100px]">
-    <div className="text-[10px] text-muted-foreground text-center">Billets</div>
-    <div className="font-bold text-base text-center">{sortedBillets.length}</div>
-  </div>
+      <div className="bg-card border rounded-lg px-3 py-1 min-w-[140px]">
+        <div className="text-[10px] text-muted-foreground text-center">
+          Total TTC
+        </div>
+        <div className="font-bold text-base text-center">
+          {totalTTC.toFixed(2)} €
+        </div>
+      </div>
 
-  <div className="bg-card border rounded-lg px-3 py-1 min-w-[140px]">
-    <div className="text-[10px] text-muted-foreground text-center">Total TTC</div>
-    <div className="font-bold text-base text-center">
-      {totalTTC.toFixed(2)} €
+      <div className="bg-card border rounded-lg px-3 py-1 min-w-[140px]">
+        <div className="text-[10px] text-muted-foreground text-center">
+          Total HT
+        </div>
+        <div className="font-bold text-base text-center">
+          {totalHT.toFixed(2)} €
+        </div>
+      </div>
+
     </div>
+
+    <div className="relative ml-5 w-[900px]">
+
+      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+
+      <Input
+        className="pl-8 h-8 text-sm"
+        placeholder="Rechercher (N° devis, destination, commande...)"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+
+    </div>
+
   </div>
 
-  <div className="bg-card border rounded-lg px-3 py-1 min-w-[140px]">
-    <div className="text-[10px] text-muted-foreground text-center">Total HT</div>
-    <div className="font-bold text-base text-center">
-      {totalHT.toFixed(2)} €
-    </div>
-  </div>
 </div>
-      <div
+
+<div
   ref={tableRef}
   className="bg-card border border-border rounded-lg overflow-auto print-content"
   style={{ height: "calc(100vh - 300px)" }}
