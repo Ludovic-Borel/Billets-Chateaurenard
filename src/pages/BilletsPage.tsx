@@ -79,6 +79,11 @@ export function BilletsPage({
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  const getClientField = (clientId: string, field: keyof Client) => {
+    const client = clients.find((c) => c.id === clientId);
+    return client ? String(client[field] || "") : "";
+  };
+
   const filteredBillets = billets.filter((b) => {
   if (!search) return true;
 
@@ -282,11 +287,6 @@ const sortedBillets = [...filteredBillets].sort((a, b) => {
 
   const totalTTC = billets.reduce((sum, b) => sum + (b.prix_ttc || 0), 0);
   const totalHT = billets.reduce((sum, b) => sum + (b.prix_ht || 0), 0);
-
-  const getClientField = (clientId: string, field: keyof Client) => {
-    const client = clients.find((c) => c.id === clientId);
-    return client ? String(client[field] || "") : "";
-  };
 
   if (loading) {
     return (
