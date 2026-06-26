@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,9 @@ import { Plus, Trash2, Pencil, Printer, Lock, LockOpen, Search } from "lucide-re
 interface BilletsPageProps {
   year: number;
   month: number;
+  selectedType: "standard" | "tarascon" | "avignon";
+  onTypeChange: (type: "standard" | "tarascon" | "avignon") => void;
+  refreshKey: number;
 }
 
 const emptyBillet = (): BilletFormData => ({
@@ -37,14 +40,19 @@ const emptyBillet = (): BilletFormData => ({
   num_facture: "",
 });
 
-export function BilletsPage({ year, month }: BilletsPageProps) {
+export function BilletsPage({
+  year,
+  month,
+  selectedType,
+  onTypeChange,
+}: BilletsPageProps) {
   const [billets, setBillets] = useState<Billet[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
-  const [selectedType, setSelectedType] = useState<string>("standard");
   const [form, setForm] = useState<BilletFormData>(emptyBillet());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const tableRef = useRef<HTMLDivElement>(null);
   
   const [search, setSearch] = useState("");
 
@@ -57,10 +65,20 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
     setBillets(billetsData);
     setClients(clientsData);
     setLoading(false);
+
+    setTimeout(() => {
+      tableRef.current?.scrollTo({
+      top: tableRef.current.scrollHeight,
+      behavior: "auto",
+  });
+}, 50);
   }, [selectedType, month, year]);
 
   useEffect(() => { loadData(); }, [loadData]);
-  
+
+  useEffect(() => {
+  loadData();
+}, [loadData]);
 
   const typeLabel = BILLET_TYPES.find((t) => t.value === selectedType)?.label || selectedType;
 
@@ -92,16 +110,53 @@ export function BilletsPage({ year, month }: BilletsPageProps) {
 });
 
 const sortedBillets = [...filteredBillets].sort((a, b) => {
-  const da = a.date_sortie || "";
-  const db = b.date_sortie || "";
+  // 1 - Date
+  const dateCompare = (a.date_sortie || "").localeCompare(b.date_sortie || "");
+  if (dateCompare !== 0) return dateCompare;
 
-  return db.localeCompare(da);
+  // 2 - Sans numéro de devis en premier
+  if (!a.num_devis && b.num_devis) return -1;
+  if (a.num_devis && !b.num_devis) return 1;
+
+  // 3 - Extraction du type et du numéro
+  const parse = (num: string) => {
+    const m = num.match(/^CHA(\d+)-(\d+)(.*)$/i);
+
+    if (!m) {
+      return {
+        serie: 999,
+        numero: Number.MAX_SAFE_INTEGER,
+        suffixe: "",
+      };
+    }
+
+    return {
+      serie: parseInt(m[1], 10),
+      numero: parseInt(m[2], 10),
+      suffixe: (m[3] || "").trim().toLowerCase(),
+    };
+  };
+
+  const pa = parse(a.num_devis || "");
+  const pb = parse(b.num_devis || "");
+
+  // CHA25 avant CHA26
+  if (pa.serie !== pb.serie)
+    return pa.serie - pb.serie;
+
+  // Numéro numérique
+  if (pa.numero !== pb.numero)
+    return pa.numero - pb.numero;
+
+  // bis / ter / etc.
+  return pa.suffixe.localeCompare(pb.suffixe);
 });
 
   const handleClientSelect = (clientId: string) => {
     const client = clients.find((c) => c.id === clientId);
     if (client) {
       setForm((prev) => ({
+        
         ...prev,
         client_id: client.id,
         contact_client: client.mail || "",
@@ -246,22 +301,36 @@ const sortedBillets = [...filteredBillets].sort((a, b) => {
 
   return (
     <div className="space-y-3 animate-fade-in">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <h2 className="text-lg font-bold">{typeLabel} — {MONTH_NAMES_FR[month]} {year}</h2>
-          <div className="flex gap-1">
-            {BILLET_TYPES.map((t) => (
-              <Button key={t.value} variant={selectedType === t.value ? "default" : "outline"} size="sm" className="h-7 text-xs"
-                onClick={() => { setSelectedType(t.value); resetForm(); }}>{t.label}</Button>
-            ))}
-          </div>
-          <Button className="h-7 text-xs" onClick={() => setShowForm(true)}>
-          <Plus className="h-3.5 w-3.5 mr-1" /> Nouveau Billet
-        </Button>
-        </div>
-        <div className="flex items-center gap-2">
-          </div>
-      </div>
+
+      <div className="flex items-center justify-between mb-2">
+
+  <div className="flex items-center gap-1">
+    {BILLET_TYPES.map((t) => (
+      <Button
+        key={t.value}
+        variant={selectedType === t.value ? "default" : "outline"}
+        size="sm"
+        className="h-8"
+        onClick={() => {
+          onTypeChange(t.value as "standard" | "tarascon" | "avignon");
+          resetForm();
+        }}
+      >
+        {t.label.replace("Marchés ", "")}
+      </Button>
+    ))}
+  </div>
+
+  <Button
+    size="sm"
+    className="h-8"
+    onClick={() => setShowForm(true)}
+  >
+    <Plus className="h-4 w-4 mr-1" />
+    Billet
+  </Button>
+
+</div>
 
       {(showForm || editingId) && (
         <div className="bg-card border border-border rounded-lg p-3 space-y-3">
@@ -345,7 +414,7 @@ const sortedBillets = [...filteredBillets].sort((a, b) => {
   </div>
 </div>
       <div
-  id="billets-scroll"
+  ref={tableRef}
   className="bg-card border border-border rounded-lg overflow-auto print-content"
   style={{ height: "calc(100vh - 300px)" }}
 >

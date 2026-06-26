@@ -69,7 +69,12 @@ function buildColMap(headers: any[], defs: { key: string; terms: string[] }[]): 
   return result;
 }
 
-export async function importFromXLSM(source: string | ArrayBuffer): Promise<ImportResult> {
+export async function importFromXLSM(
+  source: string | ArrayBuffer,
+  mois: number,
+  annee: number,
+  type: "standard" | "tarascon" | "avignon"
+): Promise<ImportResult> {
   const result: ImportResult = {
     clientsImportes: 0,
     clientsIgnores: 0,
@@ -129,12 +134,24 @@ export async function importFromXLSM(source: string | ArrayBuffer): Promise<Impo
       }
     }
   }
-
+await supabase
+  .from("billets")
+  .delete()
+  .eq("mois", mois)
+  .eq("annee", annee)
+  .eq("type", type);
   // 2. BILLETS
   for (const sheetName of wb.SheetNames) {
     if (sheetName === "Listing Client Billets Co") continue;
     const sheetInfo = detectMoisEtType(sheetName);
     if (!sheetInfo) { result.erreurs.push(`Feuille ignorée: ${sheetName}`); continue; }
+    if (
+  sheetInfo.mois !== mois ||
+  sheetInfo.annee !== annee ||
+  sheetInfo.type !== type
+) {
+  continue;
+}
 
     const sheet = wb.Sheets[sheetName];
     const data = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];

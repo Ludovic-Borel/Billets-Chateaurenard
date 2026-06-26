@@ -70,8 +70,8 @@ export async function getBillets(type: string, mois: number, annee: number): Pro
     .eq("type", type)
     .eq("mois", mois)
     .eq("annee", annee)
-    .order("date_sortie", { ascending: true })
-    .order("num_devis", { ascending: true });
+    .order("date_sortie", { ascending: true });
+    
   if (error) {
     console.error("Error fetching billets:", error);
     return [];
