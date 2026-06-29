@@ -11,6 +11,7 @@ import type { Client, Billet, BilletFormData } from "@/lib/types";
 import { BILLET_TYPES, MULTIPLICATEURS, MODES_REGLEMENT, formatNumDevis, parseMultiplicateur } from "@/lib/types";
 import { MONTH_NAMES_FR } from "@/lib/utils";
 import { Plus, Trash2, Pencil, Printer, Lock, LockOpen, Search } from "lucide-react";
+import { ClientSearch } from "@/components/ClientSearch";
 
 interface BilletsPageProps {
   year: number;
@@ -308,11 +309,15 @@ const sortedBillets = [...filteredBillets].sort((a, b) => {
               <Input className="h-7 text-xs" type="date" value={form.date_sortie} onChange={(e) => setForm({ ...form, date_sortie: e.target.value })} /></div>
             <div className="space-y-0.5"><Label className="text-[10px]">Destination</Label>
               <Input className="h-7 text-xs" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} placeholder="Destination" /></div>
-            <div className="space-y-0.5"><Label className="text-[10px]">Client</Label>
-              <Select value={form.client_id} onValueChange={handleClientSelect}>
-                <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
-                <SelectContent>{clients.map((c) => (<SelectItem key={c.id} value={c.id}>{c.nom}</SelectItem>))}</SelectContent>
-              </Select></div>
+            <div className="space-y-0.5">
+             <Label className="text-[10px]">
+              Client
+             </Label>
+             <ClientSearch
+                clients={clients}
+                value={form.client_id}
+                onChange={handleClientSelect}/>
+              </div>
             <div className="space-y-0.5"><Label className="text-[10px]">Contact client</Label>
               <Input className="h-7 text-xs" value={form.contact_client} onChange={(e) => setForm({ ...form, contact_client: e.target.value })} /></div>
             <div className="space-y-0.5"><Label className="text-[10px]">Adresse fact.</Label>
