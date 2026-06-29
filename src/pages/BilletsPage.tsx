@@ -301,62 +301,124 @@ const sortedBillets = [...filteredBillets].sort((a, b) => {
   <div className="space-y-3 pt-2 animate-fade-in">
 
       {(showForm || editingId) && (
-        <div className="bg-card border border-border rounded-lg p-3 space-y-3">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
-            <div className="space-y-0.5"><Label className="text-[10px]">N° Devis *</Label>
-              <Input className="h-7 text-xs" value={form.num_devis} onChange={(e) => setForm({ ...form, num_devis: e.target.value })} placeholder="126 ou CHA25-126" /></div>
-            <div className="space-y-0.5"><Label className="text-[10px]">Date sortie</Label>
-              <Input className="h-7 text-xs" type="date" value={form.date_sortie} onChange={(e) => setForm({ ...form, date_sortie: e.target.value })} /></div>
-            <div className="space-y-0.5"><Label className="text-[10px]">Destination</Label>
-              <Input className="h-7 text-xs" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} placeholder="Destination" /></div>
-            <div className="space-y-0.5">
-             <Label className="text-[10px]">
-              Client
-             </Label>
-             <ClientSearch
-                clients={clients}
-                value={form.client_id}
-                onChange={handleClientSelect}/>
-              </div>
-            <div className="space-y-0.5"><Label className="text-[10px]">Contact client</Label>
-              <Input className="h-7 text-xs" value={form.contact_client} onChange={(e) => setForm({ ...form, contact_client: e.target.value })} /></div>
-            <div className="space-y-0.5"><Label className="text-[10px]">Adresse fact.</Label>
-              <Input className="h-7 text-xs" value={form.adresse_facturation} onChange={(e) => setForm({ ...form, adresse_facturation: e.target.value })} /></div>
-            <div className="space-y-0.5"><Label className="text-[10px]">N° Siret</Label>
-              <Input className="h-7 text-xs" value={form.num_siret} onChange={(e) => setForm({ ...form, num_siret: e.target.value })} /></div>
-            <div className="space-y-0.5"><Label className="text-[10px]">N° Siren</Label>
-              <Input className="h-7 text-xs" value={form.num_siren} onChange={(e) => setForm({ ...form, num_siren: e.target.value })} /></div>
-            <div className="space-y-0.5"><Label className="text-[10px]">N° Nic</Label>
-              <Input className="h-7 text-xs" value={form.num_nic} onChange={(e) => setForm({ ...form, num_nic: e.target.value })} /></div>
-            <div className="space-y-0.5"><Label className="text-[10px]">N° Commande</Label>
-              <Input className="h-7 text-xs" value={form.num_commande} onChange={(e) => setForm({ ...form, num_commande: e.target.value })} /></div>
-            <div className="space-y-0.5"><Label className="text-[10px]">Multiplicateur</Label>
-              <Select value={form.multiplicateur} onValueChange={handleMultiplicateurChange}>
-                <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>{MULTIPLICATEURS.map((m) => (<SelectItem key={m} value={m}>{m}</SelectItem>))}</SelectContent>
-              </Select></div>
-            <div className="space-y-0.5"><Label className="text-[10px]">Prix Unitaire (€)</Label>
-              <Input className="h-7 text-xs" type="number" step="0.01" value={form.prix_unitaire ?? ""} onChange={(e) => handlePrixUnitaireChange(e.target.value)} /></div>
-            <div className="space-y-0.5"><Label className="text-[10px]">Prix TTC (€)</Label>
-              <Input className="h-7 text-xs bg-muted" type="number" step="0.01" value={form.prix_ttc ?? ""} readOnly /></div>
-            <div className="space-y-0.5"><Label className="text-[10px]">Acompte (€)</Label>
-              <Input className="h-7 text-xs" type="number" step="0.01" value={form.montant_acompte ?? ""} onChange={(e) => setForm({ ...form, montant_acompte: e.target.value ? parseFloat(e.target.value) : null })} /></div>
-            <div className="space-y-0.5"><Label className="text-[10px]">Mode règlement</Label>
-              <Select value={form.mode_reglement} onValueChange={(val) => setForm({ ...form, mode_reglement: val })}>
-                <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
-                <SelectContent>{MODES_REGLEMENT.map((m) => (<SelectItem key={m} value={m}>{m}</SelectItem>))}</SelectContent>
-              </Select></div>
-            <div className="space-y-0.5"><Label className="text-[10px]">N° Facture</Label>
-              <Input className="h-7 text-xs" value={form.num_facture} onChange={(e) => setForm({ ...form, num_facture: e.target.value })} /></div>
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={handleSave} className="h-7 text-xs"><Pencil className="h-3.5 w-3.5 mr-1" /> {editingId ? "Modifier" : "Ajouter"}</Button>
-            <Button variant="outline" className="h-7 text-xs" onClick={resetForm}>Annuler</Button>
-          </div>
-        </div>
-         
-      )}
+  <div className="bg-card border border-border rounded-lg p-3 space-y-3">
 
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+
+      <div className="space-y-0.5">
+        <Label className="text-[10px]">N° Devis *</Label>
+        <Input
+          className="h-7 text-xs"
+          value={form.num_devis}
+          onChange={(e) => setForm({ ...form, num_devis: e.target.value })}
+          placeholder="126 ou CHA25-126"
+        />
+      </div>
+
+      <div className="space-y-0.5">
+        <Label className="text-[10px]">Date sortie</Label>
+        <Input
+          className="h-7 text-xs"
+          type="date"
+          value={form.date_sortie}
+          onChange={(e) => setForm({ ...form, date_sortie: e.target.value })}
+        />
+      </div>
+
+      <div className="space-y-0.5">
+  <Label className="text-[10px]">
+    Client
+  </Label>
+
+  <ClientSearch
+    clients={clients}
+    value={form.client_id}
+    onChange={handleClientSelect}
+    onNewClient={() => {
+      console.log("Nouveau client");
+    }}
+  />
+</div>
+
+      <div className="space-y-0.5">
+        <Label className="text-[10px]">Contact client</Label>
+        <Input
+          className="h-7 text-xs"
+          value={form.contact_client}
+          onChange={(e) =>
+            setForm({ ...form, contact_client: e.target.value })
+          }
+        />
+      </div>
+
+      <div className="space-y-0.5">
+        <Label className="text-[10px]">Adresse fact.</Label>
+        <Input
+          className="h-7 text-xs"
+          value={form.adresse_facturation}
+          onChange={(e) =>
+            setForm({ ...form, adresse_facturation: e.target.value })
+          }
+        />
+      </div>
+
+      <div className="space-y-0.5">
+        <Label className="text-[10px]">N° Siret</Label>
+        <Input
+          className="h-7 text-xs"
+          value={form.num_siret}
+          onChange={(e) => setForm({ ...form, num_siret: e.target.value })}
+        />
+      </div>
+
+      <div className="space-y-0.5">
+        <Label className="text-[10px]">N° Siren</Label>
+        <Input
+          className="h-7 text-xs"
+          value={form.num_siren}
+          onChange={(e) => setForm({ ...form, num_siren: e.target.value })}
+        />
+      </div>
+
+      <div className="space-y-0.5">
+        <Label className="text-[10px]">N° Nic</Label>
+        <Input
+          className="h-7 text-xs"
+          value={form.num_nic}
+          onChange={(e) => setForm({ ...form, num_nic: e.target.value })}
+        />
+      </div>
+
+      <div className="space-y-0.5">
+        <Label className="text-[10px]">N° Commande</Label>
+        <Input
+          className="h-7 text-xs"
+          value={form.num_commande}
+          onChange={(e) => setForm({ ...form, num_commande: e.target.value })}
+        />
+      </div>
+
+       
+    </div>
+
+    <div className="flex gap-2">
+      <Button onClick={handleSave} className="h-7 text-xs">
+        <Pencil className="h-3.5 w-3.5 mr-1" />
+        {editingId ? "Modifier" : "Ajouter"}
+      </Button>
+
+      <Button
+        variant="outline"
+        className="h-7 text-xs"
+        onClick={resetForm}
+      >
+        Annuler
+      </Button>
+    </div>
+
+  </div>
+)}
+      
       <div className="mt-2">
 
     <div className="flex items-center gap-4">

@@ -6,17 +6,18 @@ interface Client {
   id: string;
   nom: string;
 }
-
 interface ClientSearchProps {
   clients: Client[];
   value: string;
   onChange: (clientId: string) => void;
+  onNewClient: () => void;
 }
 
 export function ClientSearch({
   clients,
   value,
   onChange,
+  onNewClient,
 }: ClientSearchProps) {
 
   const [search, setSearch] = useState("");
@@ -75,39 +76,48 @@ useEffect(() => {
 
     {filteredClients.length === 0 ? (
 
-      <div className="px-3 py-2 text-xs text-muted-foreground">
-        Aucun client trouvé
-      </div>
+  <div className="px-3 py-2 text-xs text-muted-foreground">
+    Aucun client trouvé
+  </div>
 
-    ) : (
+) : (
 
-      filteredClients.map((client) => (
+  filteredClients.map((client) => (
 
-        <button
-          key={client.id}
-          type="button"
-          onClick={() => {
-            onChange(client.id);
-            setSearch(client.nom);
-            setOpen(false);
-          }}
-          className={`w-full text-left px-3 py-2 text-xs hover:bg-muted ${
-            value === client.id ? "bg-muted font-semibold" : ""
-          }`}
-        >
-          {client.nom}
-        </button>
+    <button
+      key={client.id}
+      type="button"
+      onClick={() => {
+        onChange(client.id);
+        setSearch(client.nom);
+        setOpen(false);
+      }}
+      className={`w-full text-left px-3 py-2 text-xs hover:bg-muted ${
+        value === client.id ? "bg-muted font-semibold" : ""
+      }`}
+    >
+      {client.nom}
+    </button>
 
-      ))
+  ))
 
-    )}
+)}
+
+<hr className="my-1" />
+
+<button
+  type="button"
+  onClick={onNewClient}
+  className="w-full text-left px-3 py-2 text-xs font-medium text-primary hover:bg-muted"
+>
+  ➕ Nouveau client
+</button>
 
   </div>
 
 )}
 
-    </div>
+</div>
 
-  );
-
+);
 }
