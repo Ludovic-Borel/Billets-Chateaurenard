@@ -42,12 +42,7 @@ export function ClientsPage() {
       siret: client.siret || "",
       siren: client.siren || "",
       nic: client.nic || "",
-      chorus:
-  client.chorus === true
-    ? "Oui"
-    : client.chorus === false
-    ? "Non"
-    : "",
+      chorus: client.chorus ?? "",
     });
     setEditingId(client.id);
   };
@@ -234,20 +229,16 @@ export function ClientsPage() {
                     <td className="p-0.5 px-1 whitespace-nowrap text-muted-foreground">{client.nic}</td>
                     <td className="p-0.5 px-1 whitespace-nowrap text-center">
   <span
-    className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-      client.chorus === true
-        ? "bg-green-100 text-green-800"
-        : client.chorus === false
-        ? "bg-red-100 text-red-800"
-        : ""
-    }`}
-  >
-    {client.chorus === true
-      ? "Oui"
-      : client.chorus === false
-      ? "Non"
-      : "-"}
-  </span>
+  className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+    client.chorus === "Oui"
+      ? "bg-green-100 text-green-800"
+      : client.chorus === "Non"
+      ? "bg-red-100 text-red-800"
+      : ""
+  }`}
+>
+  {client.chorus || "-"}
+</span>
 </td>
                     <td className="p-0.5 px-1 whitespace-nowrap text-center">
                       <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={(e) => { e.stopPropagation(); handleSelect(client); }} title="Modifier">

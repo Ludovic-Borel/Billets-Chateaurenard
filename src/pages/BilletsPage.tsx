@@ -1,17 +1,44 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
+
+import { Search, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { getBillets, addBillet, updateBillet, deleteBillet, getClients } from "@/lib/storage";
-import type { Client, Billet, BilletFormData } from "@/lib/types";
-import { BILLET_TYPES, MULTIPLICATEURS, MODES_REGLEMENT, formatNumDevis, parseMultiplicateur } from "@/lib/types";
+
+import { ClientCombobox } from "@/components/client/ClientCombobox";
+
+import {
+  getBillets,
+  addBillet,
+  updateBillet,
+  deleteBillet,
+  getClients,
+} from "@/lib/storage";
+
+import type {
+  Client,
+  Billet,
+  BilletFormData,
+} from "@/lib/types";
+
+import {
+  BILLET_TYPES,
+  MULTIPLICATEURS,
+  MODES_REGLEMENT,
+  formatNumDevis,
+  parseMultiplicateur,
+} from "@/lib/types";
+
 import { MONTH_NAMES_FR } from "@/lib/utils";
-import { Plus, Trash2, Pencil, Printer, Lock, LockOpen, Search } from "lucide-react";
-import { ClientSearch } from "@/components/ClientSearch";
 
 interface BilletsPageProps {
   year: number;
@@ -21,6 +48,7 @@ interface BilletsPageProps {
 
   showForm: boolean;
   setShowForm: React.Dispatch<React.SetStateAction<boolean>>;
+  onNewClient: () => void;
 }
 
 const emptyBillet = (): BilletFormData => ({
@@ -50,6 +78,7 @@ export function BilletsPage({
   onTypeChange,
   showForm,
   setShowForm,
+  onNewClient,
 }: BilletsPageProps) {
   const [billets, setBillets] = useState<Billet[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -330,14 +359,12 @@ const sortedBillets = [...filteredBillets].sort((a, b) => {
     Client
   </Label>
 
-  <ClientSearch
-    clients={clients}
-    value={form.client_id}
-    onChange={handleClientSelect}
-    onNewClient={() => {
-      console.log("Nouveau client");
-    }}
-  />
+  <ClientCombobox
+  clients={clients}
+  value={form.client_id}
+  onChange={handleClientSelect}
+  onNewClient={onNewClient}
+/>
 </div>
 
       <div className="space-y-0.5">

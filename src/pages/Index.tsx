@@ -7,13 +7,9 @@ import { ClientsPage } from "@/pages/ClientsPage";
 import { BilletsPage } from "@/pages/BilletsPage";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import {
-  Users,
-  FileText,
-  Upload,
-  RefreshCw,
-} from "lucide-react";
+import {Users, FileText, Upload, RefreshCw } from "lucide-react";
 import { importFromXLSM } from "@/lib/importFromXLSM";
+import { ClientDialog } from "@/components/client/ClientDialog";
 
 export default function Index() {
   const now = new Date();
@@ -31,6 +27,8 @@ export default function Index() {
   const [showForm, setShowForm] = useState(false);
 
   const [importing, setImporting] = useState(false);
+
+  const [showClientDialog, setShowClientDialog] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -172,10 +170,16 @@ export default function Index() {
   onTypeChange={setSelectedType}
   showForm={showForm}
   setShowForm={setShowForm}
+  onNewClient={() => setShowClientDialog(true)}
 />
         )}
 
-      </main>
+            </main>
+
+      <ClientDialog
+        open={showClientDialog}
+        onOpenChange={setShowClientDialog}
+      />
 
     </div>
   );
