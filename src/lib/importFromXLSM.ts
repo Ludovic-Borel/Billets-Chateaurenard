@@ -45,6 +45,9 @@ export interface ImportResult {
   clientsReutilisés: number;
   billetsImportés: number;
   billetsExistants: number;
+  billetsInseres: number;
+  billetsMisAJour: number;
+  billetsInchanges: number;
   erreurs: string[];
 }
 
@@ -61,7 +64,6 @@ function cellStringRaw(val: unknown): string {
 }
 
 function buildColMap(headers: any[], defs: { key: string; terms: string[] }[]): Record<string, number> {
-  // Array.from produit un tableau dense (contrairement à .map() qui préserve les trous des tableaux sparse)
   const clean: string[] = Array.from(headers, (h: any) => {
     const s = cellStringRaw(h);
     if (!s) return "";
@@ -136,6 +138,9 @@ export async function importFromXLSM(
     clientsReutilisés: 0,
     billetsImportés: 0,
     billetsExistants: 0,
+    billetsInseres: 0,
+    billetsMisAJour: 0,
+    billetsInchanges: 0,
     erreurs: [],
   };
 
@@ -203,16 +208,40 @@ export async function importFromXLSM(
     }
   }
 
-  // Suppression des billets existants du mois/type
-  onProgress?.({ step: "Billets - Nettoyage", current: 0, total: 0, message: "Suppression des billets existants..." });
+  // 2. BILLETS — Chargement initial (UNE SEULE requête)
+  onProgress?.({ step: "Billets - Chargement", current: 0, total: 0, message: "Chargement des billets existants..." });
+
+  const { data: existingBillets, error: loadError } = await supabase
+    .from("billets")
+    .select("*")
+    .eq("mois", mois)
+    .eq("annee", annee)
+    .eq("type", type);
+
+  if (loadError) {
+    result.erreurs.push(`Erreur chargement billets existants: ${loadError.message}`);
+    return result;
+  }
+
+  // Supprimer les billets sans numéro de devis (ils seront tous réinsérés)
+  onProgress?.({ step: "Billets - Nettoyage", current: 0, total: 0, message: "Suppression des billets sans numéro..." });
   await supabase
     .from("billets")
     .delete()
     .eq("mois", mois)
     .eq("annee", annee)
-    .eq("type", type);
+    .eq("type", type)
+    .or("num_devis.is.null,num_devis.eq.");
 
-  // 2. BILLETS
+  // Map clé métier → billet existant (uniquement avec numéro de devis)
+  const billetsMap = new Map<string, any>();
+  for (const b of existingBillets || []) {
+    if (!b.num_devis) continue;
+    const key = `${b.num_devis}|${b.type}|${b.mois}|${b.annee}`;
+    billetsMap.set(key, b);
+  }
+
+  // 3. BILLETS — Parcours du fichier
   for (const sheetName of wb.SheetNames) {
     if (sheetName === "Listing Client Billets Co") continue;
     const sheetInfo = detectMoisEtType(sheetName);
@@ -255,7 +284,7 @@ export async function importFromXLSM(
       { key: "facture", terms: ["facture"] },
     ]);
 
-    // Compter le nombre de lignes de données pour la barre de progression
+    // Collecter les lignes de données
     let lignesBillets: { row: unknown[]; num_devis: string; clientName: string }[] = [];
     let consecutiveEmpty = 0;
     for (let i = headerRow + 1; i < data.length; i++) {
@@ -286,6 +315,7 @@ export async function importFromXLSM(
         message: num_devis || "(sans numéro)",
       });
 
+      // Résoudre le client
       let clientId: string | null = null;
       if (clientName) {
         const { data: clients } = await supabase
@@ -310,6 +340,7 @@ export async function importFromXLSM(
         }
       }
 
+      // Construire les données Excel
       let dateSortie = "";
       const dateVal = cm.date >= 0 ? row[cm.date] : undefined;
       if (typeof dateVal === "number") dateSortie = excelDateToString(dateVal);
@@ -338,32 +369,128 @@ export async function importFromXLSM(
       if (cm.prix_unitaire >= 0) prixUnitaire = parseNum(row[cm.prix_unitaire]);
       else prixUnitaire = parseNum(cm.prix_ttc >= 0 ? row[cm.prix_ttc] : undefined);
 
-      const billetData = {
-        type: sheetInfo.type, mois: sheetInfo.mois, annee: sheetInfo.annee,
-        num_devis: num_devis.toUpperCase(),
-        date_sortie: dateSortie,
-        destination: cellString(cm.destination >= 0 ? row[cm.destination] : undefined),
-        client_id: clientId,
-        contact_client: cellString(cm.contact >= 0 ? row[cm.contact] : undefined),
-        adresse_facturation: cellString(cm.adresse >= 0 ? row[cm.adresse] : undefined),
-        num_siret: cm.siret >= 0 ? cellString(row[cm.siret]) : "",
-        num_siren: cm.siren >= 0 ? cellString(row[cm.siren]) : "",
-        num_nic: cm.nic >= 0 ? cellString(row[cm.nic]) : "",
-        num_commande: cellString(cm.commande >= 0 ? row[cm.commande] : undefined),
-        multiplicateur, prix_unitaire: prixUnitaire,
-        prix_ttc: parseNum(cm.prix_ttc >= 0 ? row[cm.prix_ttc] : undefined),
-        prix_ht: parseNum(cm.prix_ht >= 0 ? row[cm.prix_ht] : undefined),
-        montant_acompte: parseNum(cm.acompte >= 0 ? row[cm.acompte] : undefined),
-        mode_reglement: cellString(cm.reglement >= 0 ? row[cm.reglement] : undefined),
-        chorus: cellString(cm.chorus >= 0 ? row[cm.chorus] : undefined),
-        num_facture: cellString(cm.facture >= 0 ? row[cm.facture] : undefined),
-      };
+      // Clé métier — si pas de numéro, forcer INSERT sans utiliser le Map
+      const existing = num_devis ? billetsMap.get(
+        `${num_devis.toUpperCase()}|${sheetInfo.type}|${sheetInfo.mois}|${sheetInfo.annee}`
+      ) : null;
 
-      const { error } = await supabase.from("billets").insert(billetData);
-      if (error) result.erreurs.push(`Erreur: ${error.message} (devis:${num_devis || "vide"} client:${clientName})`);
-      else result.billetsImportés++;
+      if (!existing) {
+        // === INSERT : nouveau billet ===
+        const billetData = {
+          type: sheetInfo.type, mois: sheetInfo.mois, annee: sheetInfo.annee,
+          num_devis: num_devis.toUpperCase(),
+          date_sortie: dateSortie,
+          destination: cellString(cm.destination >= 0 ? row[cm.destination] : undefined),
+          client_id: clientId,
+          contact_client: cellString(cm.contact >= 0 ? row[cm.contact] : undefined),
+          adresse_facturation: cellString(cm.adresse >= 0 ? row[cm.adresse] : undefined),
+          num_siret: cm.siret >= 0 ? cellString(row[cm.siret]) : "",
+          num_siren: cm.siren >= 0 ? cellString(row[cm.siren]) : "",
+          num_nic: cm.nic >= 0 ? cellString(row[cm.nic]) : "",
+          num_commande: cellString(cm.commande >= 0 ? row[cm.commande] : undefined),
+          multiplicateur, prix_unitaire: prixUnitaire,
+          prix_ttc: parseNum(cm.prix_ttc >= 0 ? row[cm.prix_ttc] : undefined),
+          prix_ht: parseNum(cm.prix_ht >= 0 ? row[cm.prix_ht] : undefined),
+          montant_acompte: parseNum(cm.acompte >= 0 ? row[cm.acompte] : undefined),
+          mode_reglement: cellString(cm.reglement >= 0 ? row[cm.reglement] : undefined),
+          chorus: cellString(cm.chorus >= 0 ? row[cm.chorus] : undefined),
+          num_facture: cellString(cm.facture >= 0 ? row[cm.facture] : undefined),
+        };
+
+        const { error } = await supabase.from("billets").insert(billetData);
+        if (error) {
+          result.erreurs.push(`Erreur: ${error.message} (devis:${num_devis || "vide"} client:${clientName})`);
+        } else {
+          result.billetsInseres++;
+        }
+      } else {
+        // === UPDATE ou SKIP : billet existant ===
+        // Comparer uniquement les colonnes Excel (sauf num_facture)
+        const changes: Record<string, any> = {};
+
+        // Comparer chaque colonne Excel
+        const compareStr = (xlVal: string, dbVal: string | null | undefined): boolean => {
+          return (xlVal || "") !== (dbVal || "");
+        };
+        const compareNum = (xlVal: number | null, dbVal: number | null | undefined): boolean => {
+          return (xlVal ?? null) !== (dbVal ?? null);
+        };
+
+        const xl_destination = cellString(cm.destination >= 0 ? row[cm.destination] : undefined);
+        if (compareStr(xl_destination, existing.destination)) changes.destination = xl_destination;
+
+        const xl_contact = cellString(cm.contact >= 0 ? row[cm.contact] : undefined);
+        if (compareStr(xl_contact, existing.contact_client)) changes.contact_client = xl_contact;
+
+        const xl_adresse = cellString(cm.adresse >= 0 ? row[cm.adresse] : undefined);
+        if (compareStr(xl_adresse, existing.adresse_facturation)) changes.adresse_facturation = xl_adresse;
+
+        const xl_siret = cm.siret >= 0 ? cellString(row[cm.siret]) : "";
+        if (compareStr(xl_siret, existing.num_siret)) changes.num_siret = xl_siret;
+
+        const xl_siren = cm.siren >= 0 ? cellString(row[cm.siren]) : "";
+        if (compareStr(xl_siren, existing.num_siren)) changes.num_siren = xl_siren;
+
+        const xl_nic = cm.nic >= 0 ? cellString(row[cm.nic]) : "";
+        if (compareStr(xl_nic, existing.num_nic)) changes.num_nic = xl_nic;
+
+        const xl_commande = cellString(cm.commande >= 0 ? row[cm.commande] : undefined);
+        if (compareStr(xl_commande, existing.num_commande)) changes.num_commande = xl_commande;
+
+        const xl_chorus = cellString(cm.chorus >= 0 ? row[cm.chorus] : undefined);
+        if (compareStr(xl_chorus, existing.chorus)) changes.chorus = xl_chorus;
+
+        const xl_num_facture = cellString(cm.facture >= 0 ? row[cm.facture] : undefined);
+        if (compareStr(xl_num_facture, existing.num_facture)) changes.num_facture = xl_num_facture;
+
+        const xl_multiplicateur = cellString(cm.multiplicateur >= 0 ? row[cm.multiplicateur] : undefined);
+        if (compareStr(xl_multiplicateur, existing.multiplicateur)) changes.multiplicateur = xl_multiplicateur;
+
+        const xl_reglement = cellString(cm.reglement >= 0 ? row[cm.reglement] : undefined);
+        if (compareStr(xl_reglement, existing.mode_reglement)) changes.mode_reglement = xl_reglement;
+
+        if (compareStr(dateSortie, existing.date_sortie)) changes.date_sortie = dateSortie;
+
+        if (compareNum(prixUnitaire, existing.prix_unitaire)) changes.prix_unitaire = prixUnitaire;
+
+        const xl_prix_ttc = parseNum(cm.prix_ttc >= 0 ? row[cm.prix_ttc] : undefined);
+        if (compareNum(xl_prix_ttc, existing.prix_ttc)) changes.prix_ttc = xl_prix_ttc;
+
+        const xl_prix_ht = parseNum(cm.prix_ht >= 0 ? row[cm.prix_ht] : undefined);
+        if (compareNum(xl_prix_ht, existing.prix_ht)) changes.prix_ht = xl_prix_ht;
+
+        const xl_acompte = parseNum(cm.acompte >= 0 ? row[cm.acompte] : undefined);
+        if (compareNum(xl_acompte, existing.montant_acompte)) changes.montant_acompte = xl_acompte;
+
+        // Comparer client_id
+        if ((clientId ?? null) !== (existing.client_id ?? null)) {
+          changes.client_id = clientId;
+        }
+
+        if (Object.keys(changes).length > 0) {
+          // Au moins une colonne Excel a changé → UPDATE
+          changes.updated_at = new Date().toISOString();
+
+          const { error } = await supabase
+            .from("billets")
+            .update(changes)
+            .eq("id", existing.id);
+
+          if (error) {
+            result.erreurs.push(`Erreur mise à jour ${num_devis}: ${error.message}`);
+          } else {
+            result.billetsMisAJour++;
+          }
+        } else {
+          // Aucune différence → SKIP
+          result.billetsInchanges++;
+        }
+      }
     }
   }
+
+  // billetsImportés = somme des INSERT + UPDATE pour compatibilité ascendante
+  result.billetsImportés = result.billetsInseres + result.billetsMisAJour;
 
   onProgress?.({ step: "Terminé", current: 0, total: 0, message: "Import terminé" });
   return result;
