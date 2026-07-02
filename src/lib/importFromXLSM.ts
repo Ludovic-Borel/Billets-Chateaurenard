@@ -33,22 +33,39 @@ function excelDateToString(excelDate: number): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+export interface ImportProgress {
+  step: string;
+  current: number;
+  total: number;
+  message?: string;
+}
+
 export interface ImportResult {
-  clientsImportes: number;
-  clientsIgnores: number;
-  billetsIgnores: number;
-  billetsImportes: {
-    standard: number;
-    tarascon: number;
-    avignon: number;
-  };
+  clientsCreés: number;
+  clientsReutilisés: number;
+  billetsImportés: number;
+  billetsExistants: number;
   erreurs: string[];
 }
 
+function cellString(val: unknown): string {
+  if (val === null || val === undefined) return "";
+  if (typeof val === "number" && isNaN(val)) return "";
+  return String(val).trim();
+}
+
+function cellStringRaw(val: unknown): string {
+  if (val === null || val === undefined) return "";
+  if (typeof val === "number" && isNaN(val)) return "";
+  return String(val);
+}
+
 function buildColMap(headers: any[], defs: { key: string; terms: string[] }[]): Record<string, number> {
-  const clean = headers.map((h: any) => {
-    if (!h) return "";
-    return h.toString().replace(/n[°º\.]\s*/gi, "").replace(/\s+/g, " ").trim().toLowerCase();
+  // Array.from produit un tableau dense (contrairement à .map() qui préserve les trous des tableaux sparse)
+  const clean: string[] = Array.from(headers, (h: any) => {
+    const s = cellStringRaw(h);
+    if (!s) return "";
+    return s.replace(/n[°º\.]\s*/gi, "").replace(/\s+/g, " ").trim().toLowerCase();
   });
   const result: Record<string, number> = {};
   const used: boolean[] = new Array(headers.length).fill(false);
@@ -69,21 +86,56 @@ function buildColMap(headers: any[], defs: { key: string; terms: string[] }[]): 
   return result;
 }
 
+async function findOrCreateClient(
+  data: { nom: string; mail: string; adresse: string; siret: string; siren: string; nic: string; chorus: boolean }
+): Promise<{ id: string; created: boolean }> {
+  const nom = data.nom.trim();
+
+  const { data: existing } = await supabase
+    .from("clients")
+    .select("id, siret, created_at")
+    .eq("nom", nom);
+
+  if (!existing || existing.length === 0) {
+    const { data: inserted, error } = await supabase
+      .from("clients")
+      .insert({
+        nom, mail: data.mail, adresse: data.adresse,
+        siret: data.siret, siren: data.siren, nic: data.nic,
+        chorus: data.chorus,
+      })
+      .select("id")
+      .single();
+
+    if (error || !inserted) throw new Error(`Erreur création client ${nom}: ${error?.message}`);
+    return { id: inserted.id, created: true };
+  }
+
+  if (existing.length === 1) {
+    return { id: existing[0].id, created: false };
+  }
+
+  if (data.siret) {
+    const match = existing.find(c => c.siret === data.siret);
+    if (match) return { id: match.id, created: false };
+  }
+
+  existing.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  return { id: existing[0].id, created: false };
+}
+
 export async function importFromXLSM(
   source: string | ArrayBuffer,
   mois: number,
   annee: number,
-  type: "standard" | "tarascon" | "avignon"
+  type: "standard" | "tarascon" | "avignon",
+  onProgress?: (progress: ImportProgress) => void
 ): Promise<ImportResult> {
   const result: ImportResult = {
-    clientsImportes: 0,
-    clientsIgnores: 0,
-    billetsIgnores: 0, // <-- AJOUTER
-    billetsImportes: {
-      standard: 0,
-      tarascon: 0,
-      avignon: 0
-    },
+    clientsCreés: 0,
+    clientsReutilisés: 0,
+    billetsImportés: 0,
+    billetsExistants: 0,
     erreurs: [],
   };
 
@@ -91,6 +143,8 @@ export async function importFromXLSM(
     result.erreurs.push("Supabase n'est pas configuré");
     return result;
   }
+
+  onProgress?.({ step: "Lecture du fichier", current: 0, total: 0, message: "Ouverture du fichier XLSM..." });
 
   let wb: XLSX.WorkBook;
   try {
@@ -108,7 +162,7 @@ export async function importFromXLSM(
   // 1. CLIENTS
   const clientSheet = wb.Sheets["Listing Client Billets Co"];
   if (clientSheet) {
-    const data = XLSX.utils.sheet_to_json(clientSheet, { header: 1 }) as any[][];
+    const data = XLSX.utils.sheet_to_json(clientSheet, { header: 1 }) as unknown[][];
     if (data.length > 0) {
       const headers = data[0];
       const cl = buildColMap(headers, [
@@ -117,49 +171,72 @@ export async function importFromXLSM(
         { key: "siren", terms: ["siren"] }, { key: "nic", terms: ["nic"] },
         { key: "chorus", terms: ["chorus"] },
       ]);
-      for (let i = 1; i < data.length; i++) {
-        const row = data[i];
-        const nom = row[cl.nom]?.toString().trim();
-        if (!nom) continue;
-        const { error } = await supabase.from("clients").insert({
-          nom, mail: row[cl.mail]?.toString().trim() || "",
-          adresse: row[cl.adresse]?.toString().trim() || "",
-          siret: row[cl.siret]?.toString().trim() || "",
-          siren: row[cl.siren]?.toString().trim() || "",
-          nic: row[cl.nic]?.toString().trim() || "",
-          chorus: row[cl.chorus]?.toString().trim().toLowerCase() === "oui",
-        });
-        if (error) result.erreurs.push(`Erreur client ${nom}: ${error.message}`);
-        else result.clientsImportes++;
+
+      const lignesClient = data.slice(1).filter((row: unknown[]) => {
+        const nom = cellString(cl.nom >= 0 ? row[cl.nom] : undefined);
+        return nom !== "";
+      });
+      const total = lignesClient.length;
+
+      for (let i = 0; i < lignesClient.length; i++) {
+        const row = lignesClient[i];
+        const nom = cellString(cl.nom >= 0 ? row[cl.nom] : undefined);
+
+        onProgress?.({ step: "Clients", current: i + 1, total, message: nom });
+
+        try {
+          const { created } = await findOrCreateClient({
+            nom,
+            mail: cellString(cl.mail >= 0 ? row[cl.mail] : undefined),
+            adresse: cellString(cl.adresse >= 0 ? row[cl.adresse] : undefined),
+            siret: cellString(cl.siret >= 0 ? row[cl.siret] : undefined),
+            siren: cellString(cl.siren >= 0 ? row[cl.siren] : undefined),
+            nic: cellString(cl.nic >= 0 ? row[cl.nic] : undefined),
+            chorus: cellString(cl.chorus >= 0 ? row[cl.chorus] : undefined).toLowerCase() === "oui",
+          });
+          if (created) result.clientsCreés++;
+          else result.clientsReutilisés++;
+        } catch (e: any) {
+          result.erreurs.push(`Erreur client ${nom}: ${e.message}`);
+        }
       }
     }
   }
-await supabase
-  .from("billets")
-  .delete()
-  .eq("mois", mois)
-  .eq("annee", annee)
-  .eq("type", type);
+
+  // Suppression des billets existants du mois/type
+  onProgress?.({ step: "Billets - Nettoyage", current: 0, total: 0, message: "Suppression des billets existants..." });
+  await supabase
+    .from("billets")
+    .delete()
+    .eq("mois", mois)
+    .eq("annee", annee)
+    .eq("type", type);
+
   // 2. BILLETS
   for (const sheetName of wb.SheetNames) {
     if (sheetName === "Listing Client Billets Co") continue;
     const sheetInfo = detectMoisEtType(sheetName);
     if (!sheetInfo) { result.erreurs.push(`Feuille ignorée: ${sheetName}`); continue; }
     if (
-  sheetInfo.mois !== mois ||
-  sheetInfo.annee !== annee ||
-  sheetInfo.type !== type
-) {
-  continue;
-}
+      sheetInfo.mois !== mois ||
+      sheetInfo.annee !== annee ||
+      sheetInfo.type !== type
+    ) {
+      continue;
+    }
 
     const sheet = wb.Sheets[sheetName];
-    const data = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+    const data = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as unknown[][];
 
     let headerRow = -1;
     for (let i = 0; i < data.length; i++) {
       const r = data[i];
-      if (r && r.some((c: any) => c?.toString().includes("N° de devis"))) { headerRow = i; break; }
+      if (!r) continue;
+      const hasHeader = r.some((c: unknown) => {
+        const s = cellString(c);
+        return s.includes("N° de devis");
+      });
+      if (hasHeader) { headerRow = i; break; }
     }
     if (headerRow === -1) { result.erreurs.push(`En-têtes non trouvés dans ${sheetName}`); continue; }
 
@@ -174,45 +251,77 @@ await supabase
       { key: "prix_unitaire", terms: ["prix unit"] }, { key: "prix_ttc", terms: ["prix ttc", "ttc"] },
       { key: "prix_ht", terms: ["ht"] }, { key: "acompte", terms: ["acompte"] },
       { key: "reglement", terms: ["reglement"] },
-      { key: "chorus", terms: ["chorus"] }, 
+      { key: "chorus", terms: ["chorus"] },
       { key: "facture", terms: ["facture"] },
     ]);
 
+    // Compter le nombre de lignes de données pour la barre de progression
+    let lignesBillets: { row: unknown[]; num_devis: string; clientName: string }[] = [];
     let consecutiveEmpty = 0;
     for (let i = headerRow + 1; i < data.length; i++) {
       const row = data[i];
       if (!row || !Array.isArray(row)) continue;
-
-      const num_devis = row[cm.num_devis]?.toString().trim();
-      const clientName = row[cm.client]?.toString().trim() || "";
-
+      const num_devis = cellString(cm.num_devis >= 0 ? row[cm.num_devis] : undefined);
+      const clientName = cellString(cm.client >= 0 ? row[cm.client] : undefined);
       if (num_devis && (num_devis.startsWith("TOTAUX") || num_devis.startsWith("Total"))) continue;
-
-      const hasData = row.some((c: any) => c !== null && c !== undefined && String(c).trim() !== "");
+      const hasData = row.some((c: unknown) => cellString(c) !== "");
       if (!hasData && !clientName) {
         consecutiveEmpty++;
         if (consecutiveEmpty > 3) break;
         continue;
       }
       consecutiveEmpty = 0;
+      lignesBillets.push({ row, num_devis, clientName });
+    }
+
+    const totalBillets = lignesBillets.length;
+
+    for (let i = 0; i < lignesBillets.length; i++) {
+      const { row, num_devis, clientName } = lignesBillets[i];
+
+      onProgress?.({
+        step: `Billets - ${sheetName}`,
+        current: i + 1,
+        total: totalBillets,
+        message: num_devis || "(sans numéro)",
+      });
 
       let clientId: string | null = null;
       if (clientName) {
-        const { data: clients } = await supabase.from("clients").select("id").ilike("nom", `%${clientName}%`).limit(1);
-        if (clients && clients.length > 0) clientId = clients[0].id;
+        const { data: clients } = await supabase
+          .from("clients")
+          .select("id, siret, created_at")
+          .eq("nom", clientName.trim());
+
+        if (clients && clients.length > 0) {
+          if (clients.length === 1) {
+            clientId = clients[0].id;
+          } else {
+            const siret = cm.siret >= 0 ? cellString(row[cm.siret]) : "";
+            if (siret) {
+              const match = clients.find(c => c.siret === siret);
+              if (match) clientId = match.id;
+            }
+            if (!clientId) {
+              clients.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+              clientId = clients[0].id;
+            }
+          }
+        }
       }
 
       let dateSortie = "";
-      const dateVal = row[cm.date];
+      const dateVal = cm.date >= 0 ? row[cm.date] : undefined;
       if (typeof dateVal === "number") dateSortie = excelDateToString(dateVal);
       else if (typeof dateVal === "string") {
         const m = dateVal.match(/(\d{2})\/(\d{2})\/(\d{4})/);
         dateSortie = m ? `${m[3]}-${m[2]}-${m[1]}` : dateVal;
       }
 
-      const parseNum = (val: any): number | null => {
-        if (val === null || val === undefined || val === "") return null;
-        const n = parseFloat(String(val).replace(",", "."));
+      const parseNum = (val: unknown): number | null => {
+        if (val === null || val === undefined) return null;
+        const s = String(val).replace(",", ".");
+        const n = parseFloat(s);
         return isNaN(n) ? null : Math.round(n * 100) / 100;
       };
 
@@ -227,32 +336,35 @@ await supabase
 
       let prixUnitaire = null;
       if (cm.prix_unitaire >= 0) prixUnitaire = parseNum(row[cm.prix_unitaire]);
-      else prixUnitaire = parseNum(row[cm.prix_ttc]);
+      else prixUnitaire = parseNum(cm.prix_ttc >= 0 ? row[cm.prix_ttc] : undefined);
 
       const billetData = {
         type: sheetInfo.type, mois: sheetInfo.mois, annee: sheetInfo.annee,
-        num_devis: num_devis ? num_devis.toUpperCase() : "",
-        date_sortie: dateSortie, destination: row[cm.destination]?.toString().trim() || "",
-        client_id: clientId, contact_client: row[cm.contact]?.toString().trim() || "",
-        adresse_facturation: row[cm.adresse]?.toString().trim() || "",
-        num_siret: cm.siret >= 0 ? (row[cm.siret]?.toString().trim() || "") : "",
-        num_siren: cm.siren >= 0 ? (row[cm.siren]?.toString().trim() || "") : "",
-        num_nic: cm.nic >= 0 ? (row[cm.nic]?.toString().trim() || "") : "",
-        num_commande: row[cm.commande]?.toString().trim() || "",
+        num_devis: num_devis.toUpperCase(),
+        date_sortie: dateSortie,
+        destination: cellString(cm.destination >= 0 ? row[cm.destination] : undefined),
+        client_id: clientId,
+        contact_client: cellString(cm.contact >= 0 ? row[cm.contact] : undefined),
+        adresse_facturation: cellString(cm.adresse >= 0 ? row[cm.adresse] : undefined),
+        num_siret: cm.siret >= 0 ? cellString(row[cm.siret]) : "",
+        num_siren: cm.siren >= 0 ? cellString(row[cm.siren]) : "",
+        num_nic: cm.nic >= 0 ? cellString(row[cm.nic]) : "",
+        num_commande: cellString(cm.commande >= 0 ? row[cm.commande] : undefined),
         multiplicateur, prix_unitaire: prixUnitaire,
-        prix_ttc: parseNum(row[cm.prix_ttc]), prix_ht: parseNum(row[cm.prix_ht]),
-        montant_acompte: parseNum(row[cm.acompte]),
-        mode_reglement: row[cm.reglement]?.toString().trim() || "",
-        chorus: row[cm.chorus]?.toString().trim() || "",
-        num_facture: row[cm.facture]?.toString().trim() || "",
+        prix_ttc: parseNum(cm.prix_ttc >= 0 ? row[cm.prix_ttc] : undefined),
+        prix_ht: parseNum(cm.prix_ht >= 0 ? row[cm.prix_ht] : undefined),
+        montant_acompte: parseNum(cm.acompte >= 0 ? row[cm.acompte] : undefined),
+        mode_reglement: cellString(cm.reglement >= 0 ? row[cm.reglement] : undefined),
+        chorus: cellString(cm.chorus >= 0 ? row[cm.chorus] : undefined),
+        num_facture: cellString(cm.facture >= 0 ? row[cm.facture] : undefined),
       };
-
 
       const { error } = await supabase.from("billets").insert(billetData);
       if (error) result.erreurs.push(`Erreur: ${error.message} (devis:${num_devis || "vide"} client:${clientName})`);
-      else result.billetsImportes[sheetInfo.type]++;
+      else result.billetsImportés++;
     }
   }
 
+  onProgress?.({ step: "Terminé", current: 0, total: 0, message: "Import terminé" });
   return result;
 }
